@@ -1,7 +1,7 @@
 import { createClient } from "@libsql/client";
 import path from "path";
 
-const dbPath = path.resolve(__dirname, "../data/game.db");
+const dbPath = path.resolve(process.cwd(), "data/game.db");
 
 export const db = createClient({
   url: `file:${dbPath}`,
