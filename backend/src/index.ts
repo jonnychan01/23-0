@@ -22,10 +22,13 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 async function seedIfEmpty() {
   const result = await db.execute("SELECT COUNT(*) as count FROM players");
   const count = result.rows[0].count as number;
+  console.log(`Player count: ${count}`);
   if (count > 0) return;
   console.log("Seeding database...");
-  const DATA_PATH = path.resolve(__dirname, "../data/players.json");
+  const DATA_PATH = path.resolve(process.cwd(), "data/players.json");
+  console.log(`Loading from: ${DATA_PATH}`);
   const raw = JSON.parse(fs.readFileSync(DATA_PATH, "utf-8"));
+  console.log(`Found ${raw.length} players`);
   for (const p of raw) {
     await db.execute({
       sql: `INSERT INTO players (name, club, decade, games, goals, disposals, marks, tackles, hitouts, clearances, inside50s, kicks, handballs, rebounds, position, secondaryPosition) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
