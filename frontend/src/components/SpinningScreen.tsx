@@ -61,8 +61,8 @@ export function SpinningScreen({ round, existingRosterIds, onComplete, lockedDec
           if (!lockedDecade) setDecadeDisplay(result.spin.decade);
         }
         setDone(true);
-      }, 1500);
-    }, 4000);
+      }, 400);
+    }, 1500);
 
     return () => { clearInterval(fast); clearTimeout(slowTimer); };
   }, []);
@@ -75,7 +75,7 @@ export function SpinningScreen({ round, existingRosterIds, onComplete, lockedDec
       if (result && !completedRef.current) {
         completedRef.current = true;
         clearInterval(interval);
-        setTimeout(() => onComplete(result.spin, result.candidates), 2000);
+        setTimeout(() => onComplete(result.spin, result.candidates), 400 );
       }
     }, 100);
     return () => clearInterval(interval);
