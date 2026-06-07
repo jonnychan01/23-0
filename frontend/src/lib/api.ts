@@ -1,6 +1,6 @@
 import type { Player, SimResult, SpinResult } from "../types";
 
-const BASE = "/api";
+const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 export async function spinReel(
   excludeClubs: string[] = [],
