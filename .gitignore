@@ -1,0 +1,5 @@
+node_modules/
+backend/data/game.db
+.env
+dist/
+.venv/
