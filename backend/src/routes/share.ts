@@ -1,15 +1,11 @@
 import { Router } from "express";
-import { createCanvas, registerFont } from "canvas";
+import { createCanvas } from "@napi-rs/canvas";
 import { simulate } from "../simulation";
 import type { DraftedPlayer } from "../simulation";
-import * as fs from "fs";
-import * as path from "path";
 import * as crypto from "crypto";
+import { db } from "../db";
 
 export const shareRouter = Router();
-
-const SHARES_DIR = path.join(__dirname, "../../data/shares");
-if (!fs.existsSync(SHARES_DIR)) fs.mkdirSync(SHARES_DIR, { recursive: true });
 
 const TEAM_COLOURS: Record<string, { primary: string; secondary: string }> = {
   "Adelaide":         { primary: "#002B5C", secondary: "#E21937" },
@@ -32,13 +28,6 @@ const TEAM_COLOURS: Record<string, { primary: string; secondary: string }> = {
   "Western Bulldogs": { primary: "#014896", secondary: "#FFFFFF" },
 };
 
-function hexToRgb(hex: string) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return { r, g, b };
-}
-
 function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeof simulate>): Buffer {
   const W = 800;
   const HEADER = 100;
@@ -46,16 +35,14 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
   const PADDING = 20;
   const COLS = 2;
   const rows = Math.ceil(roster.length / COLS);
-  const H = HEADER + rows * ROW_H + PADDING * 2 + 60; // 60 for footer
+  const H = HEADER + rows * ROW_H + PADDING * 2 + 60;
 
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
 
-  // Background
   ctx.fillStyle = "#f8fafc";
   ctx.fillRect(0, 0, W, H);
 
-  // Header
   ctx.fillStyle = "#1e3a5f";
   ctx.fillRect(0, 0, W, HEADER);
 
@@ -71,7 +58,6 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
   ctx.font = "bold 14px sans-serif";
   ctx.fillText(`MVP: ${simResult.mvp}`, PADDING, 84);
 
-  // Player rows
   const COL_W = (W - PADDING * 2) / COLS;
 
   roster.forEach((p, i) => {
@@ -82,8 +68,6 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
 
     const colours = TEAM_COLOURS[p.club] ?? { primary: "#1e3a5f", secondary: "#FFFFFF" };
 
-    // Number badge
-    const { r, g, b } = hexToRgb(colours.primary);
     ctx.fillStyle = colours.primary;
     ctx.beginPath();
     ctx.roundRect(x, y + 4, 32, 32, 4);
@@ -95,7 +79,6 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
     ctx.fillText(String(i + 1), x + 16, y + 24);
     ctx.textAlign = "left";
 
-    // Position badge
     ctx.fillStyle = colours.primary;
     ctx.beginPath();
     ctx.roundRect(x + 38, y + 4, 36, 18, 3);
@@ -107,26 +90,34 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
     ctx.fillText(p.position, x + 56, y + 16);
     ctx.textAlign = "left";
 
-    // Name
     ctx.fillStyle = "#0f172a";
     ctx.font = "bold 14px sans-serif";
     ctx.fillText(p.name, x + 80, y + 17);
 
-    // Club + decade
     ctx.fillStyle = "#94a3b8";
     ctx.font = "11px sans-serif";
     ctx.fillText(`${p.club} · ${p.decade}`, x + 80, y + 32);
   });
 
-  // Footer
   const footerY = HEADER + PADDING + rows * ROW_H + 16;
   ctx.fillStyle = "#cbd5e1";
   ctx.font = "12px sans-serif";
   ctx.textAlign = "center";
   ctx.fillText("23-0-production.up.railway.app", W / 2, footerY);
 
-  return canvas.toBuffer("image/png");
+  return Buffer.from(canvas.toBuffer("image/png"));
 }
+
+// Create shares table if it doesn't exist
+db.execute(`
+  CREATE TABLE IF NOT EXISTS shares (
+    id TEXT PRIMARY KEY,
+    roster TEXT NOT NULL,
+    sim_result TEXT NOT NULL,
+    image BLOB NOT NULL,
+    created_at INTEGER NOT NULL
+  )
+`);
 
 shareRouter.post("/", async (req, res) => {
   try {
@@ -137,14 +128,12 @@ shareRouter.post("/", async (req, res) => {
 
     const simResult = simulate(roster);
     const imageBuffer = generateShareImage(roster, simResult);
-
     const id = crypto.randomBytes(8).toString("hex");
-    const imagePath = path.join(SHARES_DIR, `${id}.png`);
-    fs.writeFileSync(imagePath, imageBuffer);
 
-    // Store metadata
-    const metaPath = path.join(SHARES_DIR, `${id}.json`);
-    fs.writeFileSync(metaPath, JSON.stringify({ roster, simResult, createdAt: Date.now() }));
+    await db.execute({
+      sql: `INSERT INTO shares (id, roster, sim_result, image, created_at) VALUES (?, ?, ?, ?, ?)`,
+      args: [id, JSON.stringify(roster), JSON.stringify(simResult), imageBuffer, Date.now()],
+    });
 
     res.json({ id, url: `/share/${id}` });
   } catch (err) {
@@ -153,16 +142,34 @@ shareRouter.post("/", async (req, res) => {
   }
 });
 
-shareRouter.get("/:id/image", (req, res) => {
-  const imagePath = path.join(SHARES_DIR, `${req.params.id}.png`);
-  if (!fs.existsSync(imagePath)) return res.status(404).send("Not found");
-  res.setHeader("Content-Type", "image/png");
-  res.setHeader("Cache-Control", "public, max-age=31536000");
-  res.sendFile(imagePath);
+shareRouter.get("/:id/image", async (req, res) => {
+  try {
+    const result = await db.execute({
+      sql: `SELECT image FROM shares WHERE id = ?`,
+      args: [req.params.id],
+    });
+    if (!result.rows.length) return res.status(404).send("Not found");
+    const image = result.rows[0].image as Buffer;
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "public, max-age=31536000");
+    res.send(image);
+  } catch (err) {
+    res.status(500).send("Error");
+  }
 });
 
-shareRouter.get("/:id/meta", (req, res) => {
-  const metaPath = path.join(SHARES_DIR, `${req.params.id}.json`);
-  if (!fs.existsSync(metaPath)) return res.status(404).json({ error: "Not found" });
-  res.json(JSON.parse(fs.readFileSync(metaPath, "utf-8")));
+shareRouter.get("/:id/meta", async (req, res) => {
+  try {
+    const result = await db.execute({
+      sql: `SELECT roster, sim_result FROM shares WHERE id = ?`,
+      args: [req.params.id],
+    });
+    if (!result.rows.length) return res.status(404).json({ error: "Not found" });
+    res.json({
+      roster: JSON.parse(result.rows[0].roster as string),
+      simResult: JSON.parse(result.rows[0].sim_result as string),
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Error" });
+  }
 });
