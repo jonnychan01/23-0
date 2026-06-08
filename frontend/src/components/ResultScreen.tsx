@@ -46,7 +46,7 @@ export function ResultScreen({ roster, onSimulate, simResult, onRestart }: Props
     try {
       const shareUrl = await generateShareUrl();
       const text = [
-        `🏉 I drafted my All-Time AFL Dream Team and went ${simResult.wins}-${simResult.losses}!`,
+        `I drafted my All-Time AFL Dream Team and went ${simResult.wins}-${simResult.losses}!`,
         `${getTagline()} · Team Rating: ${simResult.teamRating}`,
         `MVP: ${simResult.mvp}`,
         ``,
@@ -67,7 +67,7 @@ export function ResultScreen({ roster, onSimulate, simResult, onRestart }: Props
     try {
       const shareUrl = await generateShareUrl();
       const text = [
-        `🏉 I drafted my All-Time AFL Dream Team and went ${simResult.wins}-${simResult.losses}!`,
+        `I drafted my All-Time AFL Dream Team and went ${simResult.wins}-${simResult.losses}!`,
         `${getTagline()} · Rating: ${simResult.teamRating} · MVP: ${simResult.mvp}`,
         ``,
         shareUrl,
@@ -84,7 +84,7 @@ export function ResultScreen({ roster, onSimulate, simResult, onRestart }: Props
   const copyShareText = async () => {
     if (!simResult) return;
     const text = [
-      `🏉 My All-Time AFL Dream Team: ${simResult.wins}-${simResult.losses}`,
+      `My All-Time AFL Dream Team: ${simResult.wins}-${simResult.losses}`,
       `${getTagline()} · Rating: ${simResult.teamRating} · MVP: ${simResult.mvp}`,
       ``,
       roster.map((p, i) => `${i + 1}. ${p.position} ${p.name} (${p.club}, ${p.decade})`).join("\n"),

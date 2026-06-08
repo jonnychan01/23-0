@@ -40,7 +40,7 @@ app.get("/share/:id", (req, res) => {
   <meta name="twitter:image" content="${imageUrl}" />
   <meta name="twitter:title" content="AFL Dream Draft" />
   <meta name="twitter:description" content="Check out my All-Time AFL Dream Team!" />
-  <meta http-equiv="refresh" content="0;url=/#/share/${id}" />
+  <meta http-equiv="refresh" content="0;url=https://skillful-quietude-production-5c71.up.railway.app/#/share/${id}" />
 </head>
 <body>
   <p>Redirecting...</p>
