@@ -51,6 +51,8 @@ app.get("/share/:id", (req, res) => {
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 const FRONTEND_DIST = path.resolve(__dirname, "../../frontend/dist");
+console.log("Looking for frontend at:", FRONTEND_DIST);
+console.log("Exists:", fs.existsSync(FRONTEND_DIST));
 if (fs.existsSync(FRONTEND_DIST)) {
   app.use(express.static(FRONTEND_DIST));
   app.get("*", (_req, res) => {
