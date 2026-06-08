@@ -149,7 +149,7 @@ shareRouter.get("/:id/image", async (req, res) => {
       args: [req.params.id],
     });
     if (!result.rows.length) return res.status(404).send("Not found");
-    const image = result.rows[0].image as Buffer;
+    const image = Buffer.from(result.rows[0].image as ArrayBuffer);
     res.setHeader("Content-Type", "image/png");
     res.setHeader("Cache-Control", "public, max-age=31536000");
     res.send(image);
