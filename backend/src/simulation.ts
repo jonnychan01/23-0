@@ -250,10 +250,10 @@ export function simulate(roster: DraftedPlayer[]): SimResult {
 
   // ---------------- WINS (FIXED CURVE) ----------------
 
-  const winProb23 = sigmoid(compositeRating, 55, 0.06);
+  const winProb23 = sigmoid(compositeRating, 48, 0.07);
   const rawWins   = winProb23 * 23;
 
-  const varianceNoise = (Math.random() - 0.5) * 2;
+  const varianceNoise = (Math.random() - 0.5) * 3;
 
   const wins = Math.max(
     0,
