@@ -1,13 +1,15 @@
 import { useCallback, useState } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useGameState } from "./hooks/useGameState";
 import { StartScreen }    from "./components/StartScreen";
 import { SpinningScreen } from "./components/SpinningScreen";
 import { PickingScreen }  from "./components/PickingScreen";
 import { ResultScreen }   from "./components/ResultScreen";
 import { RosterPanel }    from "./components/RosterPanel";
+import { SharePage }      from "./components/SharePage";
 import type { Player, SpinResult } from "./types";
 
-export default function App() {
+function MainApp() {
   const {
     state,
     startGame,
@@ -41,12 +43,11 @@ export default function App() {
 
   if (screen === "start") return <StartScreen onStart={startGame} />;
   if (screen === "result") return (
-    <ResultScreen roster={roster} onSimulate={runSimulation} simResult={simResult} onRestart={restart} />
+    <ResultScreen key="result" roster={roster} onSimulate={runSimulation} simResult={simResult} onRestart={restart} />
   );
 
   return (
     <div className="flex flex-col h-screen bg-slate-100 overflow-hidden">
-      {/* Navbar */}
       <nav className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white shadow-sm z-10">
         <button onClick={() => setShowRestartConfirm(true)} className="font-black text-xl tracking-tight" style={{ color: "#1e3a5f" }}>
           23-0
@@ -59,7 +60,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Confirm restart */}
       {showRestartConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowRestartConfirm(false)} />
@@ -75,12 +75,10 @@ export default function App() {
       )}
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Desktop sidebar */}
         <div className="hidden lg:flex flex-col shrink-0 border-r border-slate-200 h-full" style={{ width: "512px", minWidth: "512px" }}>
           <RosterPanel roster={roster} round={round} positionCounts={positionCounts} classicMode={classicMode} onReorder={reorderRoster} onMovePlayer={movePlayer} />
         </div>
 
-        {/* Main content */}
         <div className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto">
             {screen === "spinning" && (
@@ -132,7 +130,6 @@ export default function App() {
             )}
           </div>
 
-          {/* Mobile bottom tab bar */}
           <div className="shrink-0 flex lg:hidden border-t border-slate-200 bg-white">
             <button onClick={() => setMobileTab("pick")} className="flex-1 py-3 flex flex-col items-center gap-0.5 transition-colors" style={{ color: mobileTab === "pick" ? "#1e3a5f" : "#94a3b8" }}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,5 +147,16 @@ export default function App() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/share/:id" element={<SharePage />} />
+        <Route path="/*" element={<MainApp />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

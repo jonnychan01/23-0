@@ -6,6 +6,7 @@ import spinRouter from "./routes/spin";
 import simulateRouter from "./routes/simulate";
 import fs from "fs";
 import path from "path";
+import { shareRouter } from "./routes/share";
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -16,6 +17,7 @@ app.use(express.json());
 app.use("/api/players", playersRouter);
 app.use("/api/spin", spinRouter);
 app.use("/api/simulate", simulateRouter);
+app.use("/api/share", shareRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 

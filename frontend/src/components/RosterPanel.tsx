@@ -141,29 +141,67 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
               const cx = (slot.x / 100) * 200;
               const cy = (slot.y / 100) * 300;
 
-              let fill = filled ? "#1e3a5f" : "rgba(255,255,255,0.15)";
-              let stroke = filled ? "#1e3a5f" : "rgba(255,255,255,0.4)";
-              let strokeWidth = 1;
+              const colours = playerInSlot
+                ? (TEAM_COLOURS[playerInSlot.club] ?? { primary: "#1e3a5f", secondary: "#FFFFFF" })
+                : null;
+
+              const initials = playerInSlot
+                ? playerInSlot.name
+                    .split(" ")
+                    .map((w: string) => w[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 3)
+                : null;
+
+              let fill = filled && colours ? colours.primary : "rgba(255,255,255,0.15)";
+              let stroke = filled && colours ? colours.secondary : "rgba(255,255,255,0.4)";
+              let strokeWidth = filled ? 1.5 : 1;
+              let labelColour = filled && colours ? colours.secondary : "rgba(255,255,255,0.6)";
 
               if (isSelected) {
-                fill = "#f59e0b"; stroke = "#f59e0b";
+                fill = "#f59e0b";
+                stroke = "#ffffff";
+                strokeWidth = 2;
+                labelColour = "#ffffff";
               } else if (selectedPlayer && isValid) {
                 fill = isFull ? "rgba(255,255,255,0.05)" : "rgba(59,130,246,0.6)";
                 stroke = isFull ? "rgba(255,255,255,0.1)" : "#3b82f6";
                 strokeWidth = isFull ? 1 : 1.5;
+                labelColour = "rgba(255,255,255,0.6)";
               } else if (selectedPlayer && !isSelected) {
-                fill = filled ? "rgba(30,58,95,0.4)" : "rgba(255,255,255,0.05)";
-                stroke = filled ? "rgba(30,58,95,0.4)" : "rgba(255,255,255,0.1)";
+                fill = filled && colours ? colours.primary + "66" : "rgba(255,255,255,0.05)";
+                stroke = filled && colours ? colours.secondary + "66" : "rgba(255,255,255,0.1)";
+                labelColour = filled ? colours!.secondary + "99" : "rgba(255,255,255,0.3)";
               }
 
               return (
                 <g key={i} style={{ cursor: filled || isValid ? "pointer" : "default" }} onClick={() => handleSlotClick(i)}>
                   <circle cx={cx} cy={cy} r="13" fill="transparent"/>
                   <circle cx={cx} cy={cy} r="11" fill={fill} stroke={stroke} strokeWidth={strokeWidth}/>
-                  <text x={cx} y={cy + 4} textAnchor="middle" fontSize="5" fontWeight="bold"
-                    fill={filled ? "white" : "rgba(255,255,255,0.6)"}>
-                    {slot.label}
-                  </text>
+                  {filled && initials ? (
+                    <text
+                      x={cx} y={cy + (initials.length > 2 ? 3 : 4)}
+                      textAnchor="middle"
+                      fontSize={initials.length > 2 ? "6" : "7"}
+                      fontWeight="bold"
+                      fill={labelColour}
+                      style={{ userSelect: "none" }}
+                    >
+                      {initials}
+                    </text>
+                  ) : (
+                    <text
+                      x={cx} y={cy + 4}
+                      textAnchor="middle"
+                      fontSize="5"
+                      fontWeight="bold"
+                      fill={labelColour}
+                      style={{ userSelect: "none" }}
+                    >
+                      {slot.label}
+                    </text>
+                  )}
                 </g>
               );
             })}

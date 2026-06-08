@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Player, SimResult } from "../types";
 import { TEAM_COLOURS } from "../types";
+import html2canvas from "html2canvas";
 
 interface Props {
   roster: Player[];
@@ -9,31 +10,106 @@ interface Props {
   onRestart: () => void;
 }
 
-function StatBar({ label, value }: { label: string; value: number }) {
-  const [width, setWidth] = useState(0);
-  useEffect(() => { setTimeout(() => setWidth(value), 200); }, [value]);
-  return (
-    <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-slate-500">{label}</span>
-        <span className="font-semibold" style={{ color: "#0f172a" }}>{value}</span>
-      </div>
-      <div className="bg-slate-100 rounded-full h-2">
-        <div
-          className="h-2 rounded-full transition-all duration-700"
-          style={{
-            width: `${width}%`,
-            background: value >= 80 ? "#1e3a5f" : value >= 60 ? "#3b82f6" : "#94a3b8"
-          }}
-        />
-      </div>
-    </div>
-  );
-}
+const BASE = import.meta.env.VITE_API_URL ?? "/api";
+const SITE = "https://skillful-quietude-production-5c71.up.railway.app";
 
 export function ResultScreen({ roster, onSimulate, simResult, onRestart }: Props) {
   useEffect(() => { onSimulate(); }, []);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const perfect = simResult?.wins === 23;
+
+  const getTagline = () => {
+    if (!simResult) return "";
+    if (perfect) return "★ Undefeated — Greatest Team Ever";
+    if (simResult.wins >= 20) return "Premiership Contenders";
+    if (simResult.wins >= 16) return "Finals Certainty";
+    if (simResult.wins >= 12) return "Finals Chance";
+    if (simResult.wins >= 8) return "Mid-Table";
+    return "Wooden Spoon";
+  };
+
+  const generateShareUrl = async (): Promise<string> => {
+    const res = await fetch(`${BASE}/share`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roster }),
+    });
+    const { id } = await res.json();
+    return `${SITE}/share/${id}`;
+  };
+
+  const shareToTwitter = async () => {
+    if (!simResult) return;
+    setSharing(true);
+    try {
+      const shareUrl = await generateShareUrl();
+      const text = [
+        `🏉 I drafted my All-Time AFL Dream Team and went ${simResult.wins}-${simResult.losses}!`,
+        `${getTagline()} · Team Rating: ${simResult.teamRating}`,
+        `MVP: ${simResult.mvp}`,
+        ``,
+        shareUrl,
+      ].join("\n");
+      const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Share failed:", err);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const shareToBluesky = async () => {
+    if (!simResult) return;
+    setSharing(true);
+    try {
+      const shareUrl = await generateShareUrl();
+      const text = [
+        `🏉 I drafted my All-Time AFL Dream Team and went ${simResult.wins}-${simResult.losses}!`,
+        `${getTagline()} · Rating: ${simResult.teamRating} · MVP: ${simResult.mvp}`,
+        ``,
+        shareUrl,
+      ].join("\n");
+      const url = `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Share failed:", err);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const copyShareText = async () => {
+    if (!simResult) return;
+    const text = [
+      `🏉 My All-Time AFL Dream Team: ${simResult.wins}-${simResult.losses}`,
+      `${getTagline()} · Rating: ${simResult.teamRating} · MVP: ${simResult.mvp}`,
+      ``,
+      roster.map((p, i) => `${i + 1}. ${p.position} ${p.name} (${p.club}, ${p.decade})`).join("\n"),
+    ].join("\n");
+    await navigator.clipboard.writeText(text);
+  };
+
+  const downloadTeamPNG = async () => {
+    if (!cardRef.current || !simResult) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        useCORS: true,
+        logging: false,
+      });
+      const link = document.createElement("a");
+      link.download = `afl-dream-team-${simResult.wins}w.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (err) {
+      console.error("PNG export failed:", err);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 py-12 px-6 overflow-y-auto">
@@ -48,7 +124,7 @@ export function ResultScreen({ roster, onSimulate, simResult, onRestart }: Props
                 {simResult.wins}<span className="text-slate-300">-{simResult.losses}</span>
               </p>
               <p className="mt-2 font-bold text-lg" style={{ color: perfect ? "#1e3a5f" : simResult.wins >= 18 ? "#16a34a" : simResult.wins >= 12 ? "#64748b" : "#dc2626" }}>
-                {perfect ? "★ Undefeated — Greatest Team Ever" : simResult.wins >= 20 ? "Premiership Contenders" : simResult.wins >= 16 ? "Finals Certainty" : simResult.wins >= 12 ? "Finals Chance" : simResult.wins >= 8 ? "Mid-Table" : "Wooden Spoon"}
+                {getTagline()}
               </p>
             </>
           )}
@@ -56,23 +132,13 @@ export function ResultScreen({ roster, onSimulate, simResult, onRestart }: Props
 
         {simResult && (
           <>
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div ref={cardRef} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center" style={{ background: "#1e3a5f" }}>
-                <h3 className="font-bold text-white">Team Breakdown</h3>
-                <span className="text-blue-200 text-sm">Rating: {simResult.teamRating}</span>
-              </div>
-              <div className="p-5 space-y-4">
-                <StatBar label="Attacking"  value={simResult.breakdown.attacking} />
-                <StatBar label="Midfield"   value={simResult.breakdown.midfield} />
-                <StatBar label="Defensive"  value={simResult.breakdown.defensive} />
-                <StatBar label="Ruck"       value={simResult.breakdown.ruck} />
-                <StatBar label="Balance"    value={simResult.breakdown.balance} />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-5 py-3 border-b border-slate-100" style={{ background: "#1e3a5f" }}>
-                <h3 className="font-bold text-white">Final 18 · MVP: <span className="text-yellow-300">{simResult.mvp}</span></h3>
+                <div>
+                  <h3 className="font-bold text-white">Final 18 · MVP: <span className="text-yellow-300">{simResult.mvp}</span></h3>
+                  <p className="text-blue-200 text-xs mt-0.5">{simResult.wins}-{simResult.losses} · {getTagline()}</p>
+                </div>
+                <span className="text-blue-300 text-xs font-mono">⭐ AFL Dream Draft</span>
               </div>
               <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {roster.map((p, i) => {
@@ -108,6 +174,66 @@ export function ResultScreen({ roster, onSimulate, simResult, onRestart }: Props
                   );
                 })}
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={shareToTwitter}
+                disabled={sharing}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white transition-colors disabled:opacity-50"
+                style={{ background: "#000000" }}
+                onMouseEnter={e => { if (!sharing) e.currentTarget.style.background = "#1a1a1a"; }}
+                onMouseLeave={e => (e.currentTarget.style.background = "#000000")}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.741-8.861L2.25 2.25h6.988l4.255 5.618L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/>
+                </svg>
+                {sharing ? "Generating…" : "Share on X"}
+              </button>
+
+              <button
+                onClick={shareToBluesky}
+                disabled={sharing}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white transition-colors disabled:opacity-50"
+                style={{ background: "#0085ff" }}
+                onMouseEnter={e => { if (!sharing) e.currentTarget.style.background = "#006acc"; }}
+                onMouseLeave={e => (e.currentTarget.style.background = "#0085ff")}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.077 1.9.9 3.569c-.117 1.084-.222 4.45.08 6.7.552 4.05 4.124 5.484 7.102 4.862 2.972-.62 5.064-2.97 5.918-5.33Zm0 0c1.087-2.114 4.046-6.053 6.798-7.995 2.636-1.861 4.125-.905 4.302.764.117 1.084.222 4.45-.08 6.7-.552 4.05-4.124 5.484-7.102 4.862C13.746 14.48 11.654 12.13 12 10.8Z"/>
+                </svg>
+                {sharing ? "Generating…" : "Share on Bluesky"}
+              </button>
+
+              <button
+                onClick={copyShareText}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-colors border border-slate-200"
+                style={{ background: "#f8fafc", color: "#334155" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#e2e8f0")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#f8fafc")}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Copy Lineup
+              </button>
+
+              <button
+                onClick={downloadTeamPNG}
+                disabled={downloading}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-colors border border-slate-200 disabled:opacity-50"
+                style={{ background: "#f8fafc", color: "#334155" }}
+                onMouseEnter={e => { if (!downloading) e.currentTarget.style.background = "#e2e8f0"; }}
+                onMouseLeave={e => (e.currentTarget.style.background = "#f8fafc")}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                {downloading ? "Exporting…" : "Save as PNG"}
+              </button>
             </div>
 
             <button
