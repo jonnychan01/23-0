@@ -122,7 +122,7 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<Position | "All">("All");
 
-  const availablePositions = ["All", ...Array.from(new Set(candidates.flatMap(p => [p.position, p.secondaryPosition].filter(Boolean))))].sort((a, b) => a === "All" ? -1 : b === "All" ? 1 : a.localeCompare(b));
+  const availablePositions = ["All", ...Array.from(new Set(candidates.flatMap(p => [p.position, p.secondaryPosition].filter((x): x is string => !!x))))].sort((a, b) => a === "All" ? -1 : b === "All" ? 1 : a.localeCompare(b));
 
   const filtered = candidates.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
