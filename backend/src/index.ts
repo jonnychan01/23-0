@@ -21,8 +21,8 @@ app.use("/api/share", shareRouter);
 
 app.get("/share/:id", (req, res) => {
   const id = req.params.id;
-  const imageUrl = `https://23-0-production.up.railway.app/api/share/${id}/image`;
-  const shareUrl = `https://23-0-production.up.railway.app/share/${id}`;
+  const imageUrl = `https://www.better23-0.com/api/share/${id}/image`;
+  const shareUrl = `https://www.better23-0.com/share/${id}`;
 
   res.send(`<!DOCTYPE html>
 <html>

@@ -11,7 +11,7 @@ interface Props {
 }
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
-const SITE = "https://23-0-production.up.railway.app";
+const SITE = "https://www.better23-0.com";
 
 export function ResultScreen({ roster, onSimulate, simResult, onRestart }: Props) {
   useEffect(() => { onSimulate(); }, []);
