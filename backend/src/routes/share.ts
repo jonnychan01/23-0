@@ -3,13 +3,37 @@ import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import { simulate } from "../simulation";
 import type { DraftedPlayer } from "../simulation";
 import * as crypto from "crypto";
-import * as path from "path";
+import * as https from "https";
 import { db } from "../db";
 
 export const shareRouter = Router();
 
-GlobalFonts.registerFromPath(path.join(__dirname, "../fonts/NotoSans.ttf"), "NotoSans");
-GlobalFonts.registerFromPath(path.join(__dirname, "../fonts/NotoSans-Bold.ttf"), "NotoSansBold");
+function fetchFont(url: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk) => chunks.push(chunk));
+      res.on("end", () => resolve(Buffer.concat(chunks)));
+      res.on("error", reject);
+    });
+  });
+}
+
+let fontsReady = false;
+async function registerFonts() {
+  try {
+    const regular = await fetchFont("https://fonts.gstatic.com/s/notosans/v36/o-0IIpQlx3QUlC5A4PNb4j5Ba_2c7A.ttf");
+    const bold = await fetchFont("https://fonts.gstatic.com/s/notosans/v36/o-0NIpQlx3QUlC5A4PNjXhFVadyBx2pqPIif.ttf");
+    GlobalFonts.register(regular, "NotoSans");
+    GlobalFonts.register(bold, "NotoSansBold");
+    fontsReady = true;
+    console.log("Fonts loaded successfully");
+  } catch (e) {
+    console.error("Font load failed:", e);
+  }
+}
+
+registerFonts();
 
 const TEAM_COLOURS: Record<string, { primary: string; secondary: string }> = {
   "Adelaide":         { primary: "#002B5C", secondary: "#E21937" },
@@ -44,6 +68,9 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
 
+  const regular = fontsReady ? "NotoSans" : "sans-serif";
+  const bold = fontsReady ? "NotoSansBold" : "sans-serif";
+
   ctx.fillStyle = "#f8fafc";
   ctx.fillRect(0, 0, W, H);
 
@@ -51,15 +78,15 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
   ctx.fillRect(0, 0, W, HEADER);
 
   ctx.fillStyle = "#FFFFFF";
-  ctx.font = "bold 26px NotoSansBold";
+  ctx.font = `bold 26px ${bold}`;
   ctx.fillText("AFL Dream Draft", PADDING, 38);
 
   ctx.fillStyle = "#93c5fd";
-  ctx.font = "14px NotoSans";
+  ctx.font = `14px ${regular}`;
   ctx.fillText(`${simResult.wins}-${simResult.losses} · ${simResult.wins === 23 ? "Undefeated" : simResult.wins >= 20 ? "Premiership Contenders" : simResult.wins >= 16 ? "Finals Certainty" : simResult.wins >= 12 ? "Finals Chance" : simResult.wins >= 8 ? "Mid-Table" : "Wooden Spoon"} · Rating: ${simResult.teamRating}`, PADDING, 62);
 
   ctx.fillStyle = "#fde68a";
-  ctx.font = "bold 14px NotoSansBold";
+  ctx.font = `bold 14px ${bold}`;
   ctx.fillText(`MVP: ${simResult.mvp}`, PADDING, 84);
 
   const COL_W = (W - PADDING * 2) / COLS;
@@ -78,7 +105,7 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
     ctx.fill();
 
     ctx.fillStyle = colours.secondary;
-    ctx.font = "bold 12px NotoSansBold";
+    ctx.font = `bold 12px ${bold}`;
     ctx.textAlign = "center";
     ctx.fillText(String(i + 1), x + 16, y + 24);
     ctx.textAlign = "left";
@@ -89,23 +116,23 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
     ctx.fill();
 
     ctx.fillStyle = colours.secondary;
-    ctx.font = "bold 10px NotoSansBold";
+    ctx.font = `bold 10px ${bold}`;
     ctx.textAlign = "center";
     ctx.fillText(p.position, x + 56, y + 16);
     ctx.textAlign = "left";
 
     ctx.fillStyle = "#0f172a";
-    ctx.font = "bold 14px NotoSansBold";
+    ctx.font = `bold 14px ${bold}`;
     ctx.fillText(p.name, x + 80, y + 17);
 
     ctx.fillStyle = "#94a3b8";
-    ctx.font = "11px NotoSans";
+    ctx.font = `11px ${regular}`;
     ctx.fillText(`${p.club} · ${p.decade}`, x + 80, y + 32);
   });
 
   const footerY = HEADER + PADDING + rows * ROW_H + 16;
   ctx.fillStyle = "#cbd5e1";
-  ctx.font = "12px NotoSans";
+  ctx.font = `12px ${regular}`;
   ctx.textAlign = "center";
   ctx.fillText("23-0-production.up.railway.app", W / 2, footerY);
 
