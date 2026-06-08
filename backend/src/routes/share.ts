@@ -123,7 +123,7 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
   ctx.fillStyle = "#cbd5e1";
   ctx.font = "12px sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("skillful-quietude-production-5c71.up.railway.app", W / 2, footerY);
+  ctx.fillText("23-0-production.up.railway.app", W / 2, footerY);
 
   return canvas.toBuffer("image/png");
 }
