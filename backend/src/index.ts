@@ -50,6 +50,14 @@ app.get("/share/:id", (req, res) => {
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
+const FRONTEND_DIST = path.resolve(__dirname, "../../frontend/dist");
+if (fs.existsSync(FRONTEND_DIST)) {
+  app.use(express.static(FRONTEND_DIST));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(FRONTEND_DIST, "index.html"));
+  });
+}
+
 async function seedIfEmpty() {
   const result = await db.execute("SELECT COUNT(*) as count FROM players");
   const count = result.rows[0].count as number;
