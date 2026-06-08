@@ -72,10 +72,22 @@ function reducer(state: GameState, action: Action): GameState {
     case "PICK_PLAYER": {
       const player = action.player;
       const newCounts = { ...state.positionCounts };
-      const pos = player.position as Position;
-      newCounts[pos] = (newCounts[pos] ?? 0) + 1;
-      const newRoster = [...state.roster, player];
+
+      // Use secondary position if primary is full
+      const primaryPos = player.position as Position;
+      const secondaryPos = player.secondaryPosition as Position | undefined;
+      const effectivePos =
+        (newCounts[primaryPos] ?? 0) >= POSITION_LIMITS[primaryPos] && secondaryPos
+          ? secondaryPos
+          : primaryPos;
+
+      newCounts[effectivePos] = (newCounts[effectivePos] ?? 0) + 1;
+
+      // Store the player with their effective position
+      const placedPlayer = { ...player, position: effectivePos, secondaryPosition: player.position };
+      const newRoster = [...state.roster, placedPlayer];
       const isLastPick = state.round >= TOTAL_ROUNDS;
+
       return {
         ...state,
         roster:              newRoster,

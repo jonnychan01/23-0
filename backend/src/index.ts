@@ -19,6 +19,35 @@ app.use("/api/spin", spinRouter);
 app.use("/api/simulate", simulateRouter);
 app.use("/api/share", shareRouter);
 
+app.get("/share/:id", (req, res) => {
+  const id = req.params.id;
+  const imageUrl = `https://skillful-quietude-production-5c71.up.railway.app/api/share/${id}/image`;
+  const shareUrl = `https://skillful-quietude-production-5c71.up.railway.app/share/${id}`;
+
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>AFL Dream Draft</title>
+  <meta property="og:title" content="AFL Dream Draft" />
+  <meta property="og:description" content="Check out my All-Time AFL Dream Team!" />
+  <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:image:width" content="800" />
+  <meta property="og:image:height" content="600" />
+  <meta property="og:url" content="${shareUrl}" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="${imageUrl}" />
+  <meta name="twitter:title" content="AFL Dream Draft" />
+  <meta name="twitter:description" content="Check out my All-Time AFL Dream Team!" />
+  <meta http-equiv="refresh" content="0;url=/#/share/${id}" />
+</head>
+<body>
+  <p>Redirecting...</p>
+</body>
+</html>`);
+});
+
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 async function seedIfEmpty() {

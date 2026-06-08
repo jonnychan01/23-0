@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import { useGameState } from "./hooks/useGameState";
 import { StartScreen }    from "./components/StartScreen";
 import { SpinningScreen } from "./components/SpinningScreen";
@@ -152,11 +152,11 @@ function MainApp() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/share/:id" element={<SharePage />} />
         <Route path="/*" element={<MainApp />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }

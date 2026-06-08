@@ -210,7 +210,10 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
               key={player.id}
               player={player}
               onPick={onPick}
-              isPositionFull={isPositionFull(player.position as Position)}
+              isPositionFull={
+                isPositionFull(player.position as Position) &&
+                (!player.secondaryPosition || isPositionFull(player.secondaryPosition as Position))
+              }
               classicMode={classicMode}
             />
           ))
@@ -228,7 +231,10 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
                 key={player.id}
                 player={player}
                 onPick={onPick}
-                isPositionFull={isPositionFull(player.position as Position)}
+                isPositionFull={
+                  isPositionFull(player.position as Position) &&
+                  (!player.secondaryPosition || isPositionFull(player.secondaryPosition as Position))
+                }
                 classicMode={classicMode}
               />
             ))}
