@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Scrapes per-club career stats from afltables.com game log pages.
-Each player appears once per club they played for, with stats for that club only.
+Scrapes per-club career stats from afltables.com
+- Only players from 1970s onwards
+- Position inferred from stat ratios not absolute values
+- Players appear once per club per decade they played for
 Run: python3 scraper/scrape_players.py
 Output: backend/data/players.json
-Warning: Takes 2-3 hours due to polite delays
 """
 
 import json, time, re
@@ -63,186 +64,137 @@ TEAM_NAME_MAP = {
     "West Coast": "West Coast",
     "Western Bulldogs": "Western Bulldogs",
     "Footscray": "Western Bulldogs",
-    "University": "University",
 }
 
-def decade_of(years: list[int]) -> str:
-    if not years:
-        return "2000s"
-    mid = years[0] + (years[-1] - years[0]) // 2
-    return f"{(mid // 10) * 10}s"
+MIN_YEAR = 1970
+MIN_GAMES_PER_STINT = 20
 
 def infer_positions(
     goals_pg: float, hitouts_pg: float, disposals_pg: float,
-    marks_pg: float, tackles_pg: float, height_cm: int,
-    kicks_pg: float, handballs_pg: float, inside50s_pg: float,
+    marks_pg: float, tackles_pg: float, kicks_pg: float,
+    handballs_pg: float, inside50s_pg: float,
     clearances_pg: float, rebounds_pg: float
 ) -> tuple[str, str | None]:
+    """
+    Position inference based on stat RATIOS rather than absolute values.
+    This handles era differences much better.
+    """
+    gp = disposals_pg if disposals_pg > 0 else 1
 
-    # Old-era detection — missing modern stats
-    old_era = (clearances_pg == 0 and rebounds_pg == 0 and
-               tackles_pg == 0 and inside50s_pg == 0)
+    # Key ratios
+    goal_rate      = goals_pg                                    # goals per game
+    hitout_rate    = hitouts_pg                                  # hitouts per game
+    kick_ratio     = kicks_pg / gp if gp > 0 else 0.5          # kicks as proportion of disposals
+    handball_ratio = handballs_pg / gp if gp > 0 else 0.5      # handballs as proportion
+    mark_rate      = marks_pg                                    # marks per game
+    tackle_rate    = tackles_pg                                  # tackles per game
+    clearance_rate = clearances_pg                               # clearances per game
+    rebound_rate   = rebounds_pg                                 # rebounds per game
+    i50_rate       = inside50s_pg                               # inside 50s per game
 
-    if old_era:
-        if hitouts_pg >= 8:
-            return "RK", "MID"
-        if goals_pg >= 3.5:
-            return "FF", "CHF"
-        if goals_pg >= 2.5:
-            return "FF", "FP"
-        if goals_pg >= 1.8:
-            return "FP", "HFF"
-        if goals_pg >= 1.2 and height_cm >= 188:
-            return "CHF", "FF"
-        if goals_pg >= 1.2:
-            return "HFF", "WNG"
-        if goals_pg >= 0.7:
-            return "WNG", "HFF"
-        if goals_pg >= 0.4:
-            return "MID", "WNG"
-        kick_ratio = kicks_pg / disposals_pg if disposals_pg > 0 else 0.5
-        if height_cm >= 193:
-            return "CHB", "FB"
-        if height_cm >= 190:
-            return "FB", "CHB"
-        if height_cm >= 186:
-            return "HBF", "CHB"
-        if kick_ratio >= 0.65 and disposals_pg >= 15:
-            return "MID", "WNG"
-        if height_cm >= 182:
-            return "BP", "HBF"
-        return "BP", "HBF"
-
-    # Ruck
-    if hitouts_pg >= 15:
-        return "RK", "CHB" if height_cm >= 198 else "MID"
-    if hitouts_pg >= 8 and height_cm >= 195:
-        return "RK", "CHB"
-    if hitouts_pg >= 5 and height_cm >= 200:
+    # ── Ruck ──────────────────────────────────────────────────────────────
+    if hitout_rate >= 15:
+        return "RK", "MID"
+    if hitout_rate >= 8:
+        return "RK", "CHB" if mark_rate >= 4 else "MID"
+    if hitout_rate >= 4 and disposals_pg < 15:
         return "RK", "MID"
 
-    # Full Forward
-    if goals_pg >= 4.0:
+    # ── Full Forward ───────────────────────────────────────────────────────
+    if goal_rate >= 3.5:
         return "FF", "CHF"
-    if goals_pg >= 3.0 and height_cm >= 188:
+    if goal_rate >= 2.8 and mark_rate >= 4:
         return "FF", "CHF"
-    if goals_pg >= 3.0 and marks_pg >= 5:
+    if goal_rate >= 2.5 and i50_rate >= 4:
         return "FF", "FP"
-    if goals_pg >= 2.5 and marks_pg >= 6 and height_cm >= 190:
-        return "FF", "CHF"
 
-    # Forward Pocket
-    if goals_pg >= 2.5 and height_cm < 185:
+    # ── Forward Pocket ─────────────────────────────────────────────────────
+    if goal_rate >= 2.0 and kick_ratio < 0.65:
         return "FP", "HFF"
-    if goals_pg >= 2.0 and height_cm < 183:
-        return "FP", "FF"
-    if goals_pg >= 2.0 and inside50s_pg >= 4 and height_cm < 187:
+    if goal_rate >= 1.8 and disposals_pg < 16:
         return "FP", "HFF"
 
-    # Centre Half Forward
-    if goals_pg >= 1.5 and height_cm >= 192 and marks_pg >= 6:
+    # ── Centre Half Forward ────────────────────────────────────────────────
+    if goal_rate >= 1.5 and mark_rate >= 5:
         return "CHF", "FF"
-    if goals_pg >= 1.2 and height_cm >= 190 and marks_pg >= 5:
+    if goal_rate >= 1.2 and mark_rate >= 5 and i50_rate >= 3:
         return "CHF", "HFF"
-    if goals_pg >= 1.0 and height_cm >= 193 and inside50s_pg >= 4:
-        return "CHF", "FF"
-    if goals_pg >= 1.0 and height_cm >= 190 and marks_pg >= 7:
-        return "CHF", "FF"
+    if goal_rate >= 1.0 and mark_rate >= 6:
+        return "CHF", "HFF"
 
-    # Half Forward Flank
-    if goals_pg >= 1.0 and disposals_pg >= 18 and inside50s_pg >= 3:
+    # ── Half Forward Flank ─────────────────────────────────────────────────
+    if goal_rate >= 0.8 and i50_rate >= 3 and kick_ratio >= 0.55:
         return "HFF", "WNG"
-    if goals_pg >= 0.8 and height_cm >= 185 and marks_pg >= 4:
+    if goal_rate >= 0.7 and mark_rate >= 4 and disposals_pg >= 14:
         return "HFF", "CHF"
-    if goals_pg >= 0.7 and kicks_pg >= 12 and inside50s_pg >= 3:
-        return "HFF", "WNG"
-    if goals_pg >= 0.6 and inside50s_pg >= 4 and disposals_pg >= 16:
+    if goal_rate >= 0.6 and i50_rate >= 3:
         return "HFF", "WNG"
 
-    # Wing
-    if disposals_pg >= 22 and goals_pg >= 0.4 and inside50s_pg >= 3 and tackles_pg < 5:
+    # ── Wing ───────────────────────────────────────────────────────────────
+    # High kicks, moderate goals, low tackles relative to disposals
+    tackle_disp_ratio = tackle_rate / disposals_pg if disposals_pg > 0 else 0
+    if kick_ratio >= 0.60 and goal_rate >= 0.3 and tackle_disp_ratio < 0.15 and i50_rate >= 2:
         return "WNG", "HFF"
-    if kicks_pg >= 14 and disposals_pg >= 22 and goals_pg < 1.0:
+    if disposals_pg >= 18 and kick_ratio >= 0.55 and goal_rate < 0.8 and rebound_rate < 2:
         return "WNG", "MID"
-    if disposals_pg >= 20 and goals_pg >= 0.3 and rebounds_pg < 2 and inside50s_pg >= 2:
-        return "WNG", "HFF"
-    if kicks_pg >= 13 and handballs_pg < 8 and goals_pg < 0.8 and disposals_pg >= 18:
-        return "WNG", "HFF"
 
-    # Midfielder
-    if clearances_pg >= 6 and tackles_pg >= 5 and disposals_pg >= 22:
+    # ── Midfielder ─────────────────────────────────────────────────────────
+    # High clearances and/or tackles relative to disposals
+    if clearance_rate >= 5 and tackle_rate >= 4:
         return "MID", "WNG"
-    if clearances_pg >= 5 and tackles_pg >= 4 and disposals_pg >= 20:
+    if clearance_rate >= 4 and disposals_pg >= 20:
         return "MID", "WNG"
-    if disposals_pg >= 26 and tackles_pg >= 3:
-        return "MID", "WNG"
-    if disposals_pg >= 22 and tackles_pg >= 5:
+    if tackle_disp_ratio >= 0.20 and disposals_pg >= 18:
         return "MID", "HBF"
-    if disposals_pg >= 20 and clearances_pg >= 4:
+    if handball_ratio >= 0.45 and tackle_rate >= 4 and clearance_rate >= 3:
         return "MID", "WNG"
-    if handballs_pg >= 10 and tackles_pg >= 4 and clearances_pg >= 3:
-        return "MID", "HFF"
-    if tackles_pg >= 6 and disposals_pg >= 18:
-        return "MID", "HBF"
+    if disposals_pg >= 22 and tackle_rate >= 3:
+        return "MID", "WNG"
 
-    # Full Back
-    if rebounds_pg >= 5 and height_cm >= 190 and goals_pg < 0.5:
+    # ── Full Back ──────────────────────────────────────────────────────────
+    if rebound_rate >= 4 and goal_rate < 0.4:
         return "FB", "CHB"
-    if height_cm >= 192 and goals_pg < 0.3 and marks_pg >= 5 and rebounds_pg >= 3:
-        return "FB", "CHB"
-    if height_cm >= 194 and goals_pg < 0.4 and marks_pg >= 6:
+    if rebound_rate >= 2 and goal_rate < 0.2 and mark_rate >= 4:
         return "FB", "CHB"
 
-    # Centre Half Back
-    if height_cm >= 192 and marks_pg >= 6 and goals_pg < 0.6 and rebounds_pg >= 2:
+    # ── Centre Half Back ───────────────────────────────────────────────────
+    if mark_rate >= 6 and goal_rate < 0.5 and rebound_rate >= 1.5:
         return "CHB", "FB"
-    if height_cm >= 190 and marks_pg >= 5 and disposals_pg >= 16 and goals_pg < 0.8:
+    if mark_rate >= 5 and goal_rate < 0.6 and disposals_pg >= 15:
         return "CHB", "HBF"
-    if height_cm >= 188 and marks_pg >= 7 and goals_pg < 0.7:
-        return "CHB", "FB"
-    if height_cm >= 190 and marks_pg >= 5 and goals_pg < 0.5:
+    if rebound_rate >= 2 and mark_rate >= 4 and goal_rate < 0.5:
         return "CHB", "HBF"
 
-    # Half Back Flank
-    if rebounds_pg >= 3 and disposals_pg >= 18 and goals_pg < 0.6:
+    # ── Half Back Flank ────────────────────────────────────────────────────
+    if rebound_rate >= 2 and goal_rate < 0.5 and disposals_pg >= 14:
         return "HBF", "MID"
-    if height_cm >= 184 and marks_pg >= 4 and goals_pg < 0.5 and disposals_pg >= 15:
+    if kick_ratio >= 0.58 and goal_rate < 0.4 and mark_rate >= 3:
         return "HBF", "CHB"
-    if kicks_pg >= 10 and rebounds_pg >= 2 and goals_pg < 0.5:
-        return "HBF", "WNG"
-    if disposals_pg >= 16 and rebounds_pg >= 2 and goals_pg < 0.5:
+    if goal_rate < 0.4 and disposals_pg >= 16 and tackle_rate >= 3:
         return "HBF", "MID"
-    if marks_pg >= 4 and goals_pg < 0.4 and height_cm >= 182 and disposals_pg >= 14:
-        return "HBF", "CHB"
 
-    # Back Pocket
-    if rebounds_pg >= 2 and goals_pg < 0.4 and height_cm < 185:
+    # ── Back Pocket ────────────────────────────────────────────────────────
+    if goal_rate < 0.3 and rebound_rate >= 1 and mark_rate >= 2:
         return "BP", "HBF"
-    if goals_pg < 0.3 and height_cm < 183 and tackles_pg >= 3:
-        return "BP", "HBF"
-    if goals_pg < 0.3 and rebounds_pg >= 1 and disposals_pg >= 12:
+    if goal_rate < 0.25 and disposals_pg >= 12:
         return "BP", "HBF"
 
-    # Fallbacks
-    if goals_pg >= 1.5:
-        return ("CHF", "HFF") if height_cm >= 190 else ("FP", "HFF")
-    if goals_pg >= 0.8:
-        return ("CHF", "HFF") if height_cm >= 190 else ("HFF", "WNG")
-    if goals_pg >= 0.4:
+    # ── Fallbacks ──────────────────────────────────────────────────────────
+    if goal_rate >= 1.0:
+        return "HFF", "WNG"
+    if goal_rate >= 0.5:
         return "WNG", "HFF"
-    if height_cm >= 196:
-        return "CHB", "FB"
-    if height_cm >= 191:
-        return "FB", "CHB"
-    if height_cm >= 186:
-        return "HBF", "CHB"
-    if height_cm >= 182:
-        return "BP", "HBF"
+    if goal_rate >= 0.3:
+        return "MID", "WNG"
+    if mark_rate >= 4:
+        return "CHB", "HBF"
+    if disposals_pg >= 15:
+        return "HBF", "BP"
     return "BP", "HBF"
 
 
 def get_player_list(slug: str) -> list[tuple[str, str, int]]:
-    """Returns list of (name, game_log_url, games) from alltime page."""
+    """Returns list of (name, stats_url, total_games) from alltime page."""
     url = f"{BASE}/stats/alltime/{slug}.html"
     try:
         r = requests.get(url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
@@ -275,13 +227,19 @@ def get_player_list(slug: str) -> list[tuple[str, str, int]]:
                 parts = name.split(",", 1)
                 name = f"{parts[1].strip()} {parts[0].strip()}"
 
+            # Check seasons string for any year >= MIN_YEAR
+            seasons_str = cells[8].get_text(strip=True)
+            years = [int(y) for y in re.findall(r'\d{4}', seasons_str)]
+            if not years or max(years) < MIN_YEAR:
+                continue
+
             games_str = cells[6].get_text(strip=True)
             games_m = re.match(r'(\d+)', games_str)
             games = int(games_m.group(1)) if games_m else 0
-            if games < 30:
+            if games < MIN_GAMES_PER_STINT:
                 continue
 
-            # Convert stats page URL to game log URL
+            # Fix relative URLs
             if href.startswith("../../"):
                 href = "https://afltables.com/afl/" + href.replace("../../", "")
             elif href.startswith("../"):
@@ -298,7 +256,11 @@ def get_player_list(slug: str) -> list[tuple[str, str, int]]:
     return results
 
 
-def scrape_player_by_club(name: str, url: str) -> list[dict]:
+def scrape_player_by_club_and_decade(name: str, url: str) -> list[dict]:
+    """
+    Scrapes the player stats page and returns one entry per club per decade.
+    e.g. Nathan Buckley at Collingwood in 1990s AND 2000s = 2 entries.
+    """
     try:
         r = requests.get(url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
         r.raise_for_status()
@@ -307,17 +269,10 @@ def scrape_player_by_club(name: str, url: str) -> list[dict]:
 
     soup = BeautifulSoup(r.text, "html.parser")
 
-    height_cm = 180
-    for tag in soup.find_all(string=re.compile(r'\d{3}cm')):
-        m = re.search(r'(\d{3})cm', str(tag))
-        if m:
-            val = int(m.group(1))
-            if 150 <= val <= 220:
-                height_cm = val
-                break
-
     tables = soup.find_all("table")
-    club_stats: dict[str, dict] = {}
+
+    # club_decade_stats[club][decade] = {gp, ki, mk, hb, di, gl, ho, ta, cl, i50, rb}
+    club_decade_stats: dict[str, dict[str, dict]] = {}
 
     for table in tables:
         rows = table.find_all("tr")
@@ -339,6 +294,7 @@ def scrape_player_by_club(name: str, url: str) -> list[dict]:
 
         idx_team = col_idx(["TEAM"])
         idx_year = col_idx(["YEAR"])
+        idx_gm   = col_idx(["GM"])
         idx_ki   = col_idx(["KI"])
         idx_mk   = col_idx(["MK"])
         idx_hb   = col_idx(["HB"])
@@ -365,7 +321,13 @@ def scrape_player_by_club(name: str, url: str) -> list[dict]:
 
             year_str = cell(idx_year)
             if not re.match(r'^\d{4}$', year_str):
-                continue  # skip totals/averages rows
+                continue
+
+            year = int(year_str)
+            if year < MIN_YEAR:
+                continue
+
+            decade = f"{(year // 10) * 10}s"
 
             team_raw = cell(idx_team)
             team = TEAM_NAME_MAP.get(team_raw, team_raw)
@@ -379,23 +341,21 @@ def scrape_player_by_club(name: str, url: str) -> list[dict]:
                 except:
                     return 0.0
 
-            # Games played this season = count rows per team per year
-            if team not in club_stats:
-                club_stats[team] = {
-                    "years": [], "gp": 0,
-                    "ki": 0.0, "mk": 0.0, "hb": 0.0, "di": 0.0,
+            season_games = int(fval(idx_gm)) if idx_gm is not None else 1
+            if season_games <= 0:
+                season_games = 1
+
+            if team not in club_decade_stats:
+                club_decade_stats[team] = {}
+            if decade not in club_decade_stats[team]:
+                club_decade_stats[team][decade] = {
+                    "gp": 0, "ki": 0.0, "mk": 0.0, "hb": 0.0, "di": 0.0,
                     "gl": 0.0, "ho": 0.0, "ta": 0.0, "cl": 0.0,
                     "i50": 0.0, "rb": 0.0,
                 }
 
-            s = club_stats[team]
-            s["years"].append(int(year_str))
-
-            # Each row is a season total, not a game — get games from GM column
-            idx_gm = col_idx(["GM"])
-            season_games = fval(idx_gm) if idx_gm else 1
-            s["gp"] += int(season_games) if season_games > 0 else 1
-
+            s = club_decade_stats[team][decade]
+            s["gp"]  += season_games
             s["ki"]  += fval(idx_ki)
             s["mk"]  += fval(idx_mk)
             s["hb"]  += fval(idx_hb)
@@ -407,91 +367,90 @@ def scrape_player_by_club(name: str, url: str) -> list[dict]:
             s["i50"] += fval(idx_i50)
             s["rb"]  += fval(idx_rb)
 
-        break  # only need first matching table
+        break  # only need first matching stats table
 
+    # Build one record per club per decade
     players = []
-    for club, s in club_stats.items():
-        gp = s["gp"]
-        if gp < 30:
-            continue
+    for club, decades in club_decade_stats.items():
+        for decade, s in decades.items():
+            gp = s["gp"]
+            if gp < MIN_GAMES_PER_STINT:
+                continue
 
-        def avg(total):
-            return round(total / gp, 2) if gp > 0 else 0.0
+            def avg(total: float) -> float:
+                return round(total / gp, 2) if gp > 0 else 0.0
 
-        goals_pg      = avg(s["gl"])
-        disposals_pg  = avg(s["di"])
-        marks_pg      = avg(s["mk"])
-        tackles_pg    = avg(s["ta"])
-        hitouts_pg    = avg(s["ho"])
-        clearances_pg = avg(s["cl"])
-        inside50s_pg  = avg(s["i50"])
-        kicks_pg      = avg(s["ki"])
-        handballs_pg  = avg(s["hb"])
-        rebounds_pg   = avg(s["rb"])
+            goals_pg      = avg(s["gl"])
+            disposals_pg  = avg(s["di"])
+            marks_pg      = avg(s["mk"])
+            tackles_pg    = avg(s["ta"])
+            hitouts_pg    = avg(s["ho"])
+            clearances_pg = avg(s["cl"])
+            inside50s_pg  = avg(s["i50"])
+            kicks_pg      = avg(s["ki"])
+            handballs_pg  = avg(s["hb"])
+            rebounds_pg   = avg(s["rb"])
 
-        position, secondary = infer_positions(
-            goals_pg, hitouts_pg, disposals_pg, marks_pg, tackles_pg,
-            height_cm, kicks_pg, handballs_pg, inside50s_pg,
-            clearances_pg, rebounds_pg
-        )
+            position, secondary = infer_positions(
+                goals_pg, hitouts_pg, disposals_pg, marks_pg, tackles_pg,
+                kicks_pg, handballs_pg, inside50s_pg, clearances_pg, rebounds_pg
+            )
 
-        players.append({
-            "name":              name,
-            "club":              club,
-            "decade":            decade_of(sorted(set(s["years"]))),
-            "games":             gp,
-            "goals":             goals_pg,
-            "disposals":         disposals_pg,
-            "marks":             marks_pg,
-            "tackles":           tackles_pg,
-            "hitouts":           hitouts_pg,
-            "clearances":        clearances_pg,
-            "inside50s":         inside50s_pg,
-            "kicks":             kicks_pg,
-            "handballs":         handballs_pg,
-            "rebounds":          rebounds_pg,
-            "position":          position,
-            "secondaryPosition": secondary,
-        })
+            players.append({
+                "name":              name,
+                "club":              club,
+                "decade":            decade,
+                "games":             gp,
+                "goals":             goals_pg,
+                "disposals":         disposals_pg,
+                "marks":             marks_pg,
+                "tackles":           tackles_pg,
+                "hitouts":           hitouts_pg,
+                "clearances":        clearances_pg,
+                "inside50s":         inside50s_pg,
+                "kicks":             kicks_pg,
+                "handballs":         handballs_pg,
+                "rebounds":          rebounds_pg,
+                "position":          position,
+                "secondaryPosition": secondary,
+            })
 
     return players
 
 
 def main():
     all_players = []
-    seen: set[tuple[str, str]] = set()
+    seen: set[tuple[str, str, str]] = set()  # (name, club, decade)
     failed = 0
-    total_processed = 0
 
     for slug, club_name in CLUBS.items():
         print(f"\n── {club_name} ──")
         player_list = get_player_list(slug)
-        print(f"  Found {len(player_list)} players")
+        print(f"  Found {len(player_list)} players (1970s+)")
         time.sleep(1.0)
 
-        for i, (name, gm_url, _games) in enumerate(player_list):
-            records = scrape_player_by_club(name, gm_url)
+        for i, (name, url, _) in enumerate(player_list):
+            records = scrape_player_by_club_and_decade(name, url)
 
+            added = 0
             for record in records:
-                print(f"  {record['name']} @ {record['club']} ({record['games']}g) — goals={record['goals']} disp={record['disposals']} pos={record['position']}")
-                key = (name.lower(), record["club"])
+                key = (name.lower(), record["club"], record["decade"])
                 if key not in seen:
                     seen.add(key)
                     all_players.append(record)
+                    added += 1
 
             if not records:
                 failed += 1
 
-            total_processed += 1
             if (i + 1) % 25 == 0:
-                print(f"  {i + 1}/{len(player_list)} ({len(all_players)} records so far)...")
+                print(f"  {i + 1}/{len(player_list)} ({len(all_players)} records)...")
 
             time.sleep(0.2)
 
         print(f"  ✓ {club_name} done")
 
-    print(f"\nTotal records: {len(all_players)} ({failed} failed)")
-
+    print(f"\nTotal: {len(all_players)} records ({failed} failed)")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with open(OUT, "w") as f:
         json.dump(all_players, f, indent=2)
