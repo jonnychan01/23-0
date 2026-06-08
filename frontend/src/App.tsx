@@ -76,14 +76,13 @@ export default function App() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}
-        <div className="hidden lg:flex flex-col w-64 shrink-0 border-r border-slate-200">
+        <div className="hidden lg:flex flex-col shrink-0 border-r border-slate-200 h-full" style={{ width: "512px", minWidth: "512px" }}>
           <RosterPanel roster={roster} round={round} positionCounts={positionCounts} classicMode={classicMode} onReorder={reorderRoster} onMovePlayer={movePlayer} />
         </div>
 
         {/* Main content */}
         <div className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto">
-            {/* Spinning — always show regardless of tab */}
             {screen === "spinning" && (
               <SpinningScreen
                 round={round}
@@ -96,7 +95,6 @@ export default function App() {
               />
             )}
 
-            {/* Picking */}
             {screen === "picking" && currentSpin && mobileTab === "pick" && (
               <PickingScreen
                 round={round}
@@ -111,14 +109,12 @@ export default function App() {
               />
             )}
 
-            {/* Mobile roster tab */}
             {mobileTab === "side" && (
               <div className="lg:hidden">
                 <RosterPanel roster={roster} round={round} positionCounts={positionCounts} classicMode={classicMode} onReorder={reorderRoster} onMovePlayer={movePlayer} />
               </div>
             )}
 
-            {/* Desktop picking always visible */}
             {screen === "picking" && currentSpin && (
               <div className="hidden lg:block h-full">
                 <PickingScreen

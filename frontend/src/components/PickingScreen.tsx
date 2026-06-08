@@ -1,8 +1,6 @@
 import { useState } from "react";
 import type { Player, SpinResult, Position } from "../types";
-import { TEAM_COLOURS, POSITION_LIMITS } from "../types";
-
-const ALL_POSITIONS: Position[] = ["FF", "FP", "CHF", "HFF", "WNG", "MID", "RK", "CHB", "HBF", "FB", "BP"];
+import { TEAM_COLOURS } from "../types";
 
 interface Props {
   round: number;
@@ -35,13 +33,11 @@ function MobilePlayerRow({ player, onPick, isPositionFull }: {
       >
         <span className="text-xs font-bold" style={{ color: colours.secondary }}>{player.position}</span>
       </div>
-
       <div className="flex-1 min-w-0">
         <p className="font-bold text-slate-800 text-sm leading-tight">{player.name}</p>
         <p className="text-xs text-slate-400 mt-0.5">{player.position}{player.secondaryPosition ? ` · ${player.secondaryPosition}` : ""}</p>
         <p className="text-xs text-slate-400">{player.club} · {player.decade}</p>
       </div>
-
       <div className="flex gap-2 shrink-0">
         {[
           { label: "GL", value: player.goals },
@@ -56,7 +52,6 @@ function MobilePlayerRow({ player, onPick, isPositionFull }: {
           </div>
         ))}
       </div>
-
       {isPositionFull && (
         <span className="text-xs text-red-400 font-medium shrink-0">Full</span>
       )}
@@ -93,7 +88,6 @@ function DesktopPlayerCard({ player, onPick, isPositionFull }: {
           )}
         </div>
       </div>
-
       <div className="p-3">
         <div className="flex items-center justify-between mb-3">
           <span className="text-slate-400 text-xs">{player.decade}</span>
@@ -128,14 +122,13 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<Position | "All">("All");
 
+  const availablePositions = ["All", ...Array.from(new Set(candidates.flatMap(p => [p.position, p.secondaryPosition].filter(Boolean))))].sort((a, b) => a === "All" ? -1 : b === "All" ? 1 : a.localeCompare(b));
+
   const filtered = candidates.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchesPos = posFilter === "All" || p.position === posFilter || p.secondaryPosition === posFilter;
     return matchesSearch && matchesPos;
   });
-
-  // Get positions that exist in candidates
-  const availablePositions = ["All", ...Array.from(new Set(candidates.map(p => p.position)))];
 
   return (
     <div className="flex flex-col h-full bg-slate-100">
@@ -161,8 +154,8 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
           </button>
         </div>
 
-        {/* Search + filter — mobile only */}
-        <div className="mt-3 flex gap-2 lg:hidden">
+        {/* Search + filter — both mobile and desktop */}
+        <div className="mt-3 flex gap-2">
           <input
             type="text"
             placeholder="Search players..."
@@ -170,10 +163,18 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
             onChange={e => setSearch(e.target.value)}
             className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:border-slate-400"
           />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
+            >
+              Clear
+            </button>
+          )}
         </div>
 
-        {/* Position filter pills — mobile only */}
-        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1 lg:hidden">
+        {/* Position filter pills — both mobile and desktop */}
+        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
           {availablePositions.map(pos => (
             <button
               key={pos}
@@ -190,7 +191,7 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
           ))}
         </div>
 
-        <p className="text-slate-400 text-xs mt-2">{filtered.length} players</p>
+        <p className="text-slate-400 text-xs mt-2">{filtered.length} of {candidates.length} players</p>
       </div>
 
       {/* Mobile list */}
@@ -211,11 +212,11 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
 
       {/* Desktop grid */}
       <div className="hidden lg:block flex-1 overflow-y-auto p-4">
-        {candidates.length === 0 ? (
-          <div className="flex items-center justify-center h-32 text-slate-400 text-sm">Loading...</div>
+        {filtered.length === 0 ? (
+          <div className="flex items-center justify-center h-32 text-slate-400 text-sm">No players found</div>
         ) : (
           <div className="grid grid-cols-3 xl:grid-cols-4 gap-3">
-            {candidates.map(player => (
+            {filtered.map(player => (
               <DesktopPlayerCard
                 key={player.id}
                 player={player}
