@@ -14,10 +14,11 @@ interface Props {
   rosterIds: number[];
 }
 
-function MobilePlayerRow({ player, onPick, isPositionFull }: {
+function MobilePlayerRow({ player, onPick, isPositionFull, classicMode }: {
   player: Player;
   onPick: (player: Player) => void;
   isPositionFull: boolean;
+  classicMode: boolean;
 }) {
   const colours = TEAM_COLOURS[player.club] ?? { primary: "#1e3a5f", secondary: "#FFFFFF" };
 
@@ -38,20 +39,22 @@ function MobilePlayerRow({ player, onPick, isPositionFull }: {
         <p className="text-xs text-slate-400 mt-0.5">{player.position}{player.secondaryPosition ? ` · ${player.secondaryPosition}` : ""}</p>
         <p className="text-xs text-slate-400">{player.club} · {player.decade}</p>
       </div>
-      <div className="flex gap-2 shrink-0">
-        {[
-          { label: "GL", value: player.goals },
-          { label: "DI", value: player.disposals },
-          { label: "MK", value: player.marks },
-          { label: "TK", value: player.tackles },
-          { label: "HO", value: player.hitouts },
-        ].map(({ label, value }) => (
-          <div key={label} className="text-center w-8">
-            <p className="text-xs font-bold text-slate-800">{value.toFixed(1)}</p>
-            <p className="text-xs text-slate-400">{label}</p>
-          </div>
-        ))}
-      </div>
+      {!classicMode && (
+        <div className="flex gap-2 shrink-0">
+          {[
+            { label: "GL", value: player.goals },
+            { label: "DI", value: player.disposals },
+            { label: "MK", value: player.marks },
+            { label: "TK", value: player.tackles },
+            { label: "HO", value: player.hitouts },
+          ].map(({ label, value }) => (
+            <div key={label} className="text-center w-8">
+              <p className="text-xs font-bold text-slate-800">{value.toFixed(1)}</p>
+              <p className="text-xs text-slate-400">{label}</p>
+            </div>
+          ))}
+        </div>
+      )}
       {isPositionFull && (
         <span className="text-xs text-red-400 font-medium shrink-0">Full</span>
       )}
@@ -59,10 +62,11 @@ function MobilePlayerRow({ player, onPick, isPositionFull }: {
   );
 }
 
-function DesktopPlayerCard({ player, onPick, isPositionFull }: {
+function DesktopPlayerCard({ player, onPick, isPositionFull, classicMode }: {
   player: Player;
   onPick: (player: Player) => void;
   isPositionFull: boolean;
+  classicMode: boolean;
 }) {
   const colours = TEAM_COLOURS[player.club] ?? { primary: "#1e3a5f", secondary: "#FFFFFF" };
 
@@ -94,31 +98,33 @@ function DesktopPlayerCard({ player, onPick, isPositionFull }: {
           <span className="text-slate-400 text-xs">{player.games} games</span>
           {isPositionFull && <span className="text-red-500 text-xs font-medium">Position Full</span>}
         </div>
-        <div className="space-y-1.5">
-          {[
-            { label: "Goals",      value: player.goals,      max: 8  },
-            { label: "Disposals",  value: player.disposals,  max: 35 },
-            { label: "Marks",      value: player.marks,      max: 12 },
-            { label: "Tackles",    value: player.tackles,    max: 10 },
-            { label: "Hitouts",    value: player.hitouts,    max: 40 },
-            { label: "Clearances", value: player.clearances, max: 10 },
-            { label: "Inside 50s", value: player.inside50s,  max: 10 },
-          ].map(({ label, value, max }) => (
-            <div key={label} className="flex items-center gap-2">
-              <span className="text-slate-400 text-xs w-16 shrink-0">{label}</span>
-              <div className="flex-1 bg-slate-100 rounded-full h-1.5">
-                <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, (value / max) * 100)}%`, background: "#1e3a5f" }} />
+        {!classicMode && (
+          <div className="space-y-1.5">
+            {[
+              { label: "Goals",      value: player.goals,      max: 8  },
+              { label: "Disposals",  value: player.disposals,  max: 35 },
+              { label: "Marks",      value: player.marks,      max: 12 },
+              { label: "Tackles",    value: player.tackles,    max: 10 },
+              { label: "Hitouts",    value: player.hitouts,    max: 40 },
+              { label: "Clearances", value: player.clearances, max: 10 },
+              { label: "Inside 50s", value: player.inside50s,  max: 10 },
+            ].map(({ label, value, max }) => (
+              <div key={label} className="flex items-center gap-2">
+                <span className="text-slate-400 text-xs w-16 shrink-0">{label}</span>
+                <div className="flex-1 bg-slate-100 rounded-full h-1.5">
+                  <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, (value / max) * 100)}%`, background: "#1e3a5f" }} />
+                </div>
+                <span className="text-slate-600 text-xs w-8 text-right">{value.toFixed(1)}</span>
               </div>
-              <span className="text-slate-600 text-xs w-8 text-right">{value.toFixed(1)}</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </button>
   );
 }
 
-export function PickingScreen({ round, spin, candidates, onPick, onRespin, respinsRemaining, isPositionFull }: Props) {
+export function PickingScreen({ round, spin, candidates, onPick, onRespin, respinsRemaining, classicMode, isPositionFull }: Props) {
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<Position | "All">("All");
 
@@ -154,7 +160,7 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
           </button>
         </div>
 
-        {/* Search + filter — both mobile and desktop */}
+        {/* Search */}
         <div className="mt-3 flex gap-2">
           <input
             type="text"
@@ -173,7 +179,7 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
           )}
         </div>
 
-        {/* Position filter pills — both mobile and desktop */}
+        {/* Position filter pills */}
         <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
           {availablePositions.map(pos => (
             <button
@@ -205,6 +211,7 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
               player={player}
               onPick={onPick}
               isPositionFull={isPositionFull(player.position as Position)}
+              classicMode={classicMode}
             />
           ))
         )}
@@ -222,6 +229,7 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
                 player={player}
                 onPick={onPick}
                 isPositionFull={isPositionFull(player.position as Position)}
+                classicMode={classicMode}
               />
             ))}
           </div>
