@@ -1,11 +1,15 @@
 import { Router } from "express";
-import { createCanvas } from "@napi-rs/canvas";
+import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import { simulate } from "../simulation";
 import type { DraftedPlayer } from "../simulation";
 import * as crypto from "crypto";
+import * as path from "path";
 import { db } from "../db";
 
 export const shareRouter = Router();
+
+GlobalFonts.registerFromPath(path.join(__dirname, "../fonts/NotoSans.ttf"), "NotoSans");
+GlobalFonts.registerFromPath(path.join(__dirname, "../fonts/NotoSans-Bold.ttf"), "NotoSansBold");
 
 const TEAM_COLOURS: Record<string, { primary: string; secondary: string }> = {
   "Adelaide":         { primary: "#002B5C", secondary: "#E21937" },
@@ -47,15 +51,15 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
   ctx.fillRect(0, 0, W, HEADER);
 
   ctx.fillStyle = "#FFFFFF";
-  ctx.font = "bold 26px sans-serif";
+  ctx.font = "bold 26px NotoSansBold";
   ctx.fillText("AFL Dream Draft", PADDING, 38);
 
   ctx.fillStyle = "#93c5fd";
-  ctx.font = "14px sans-serif";
-  ctx.fillText(`${simResult.wins}-${simResult.losses} · ${simResult.wins === 23 ? "★ Undefeated" : simResult.wins >= 20 ? "Premiership Contenders" : simResult.wins >= 16 ? "Finals Certainty" : simResult.wins >= 12 ? "Finals Chance" : simResult.wins >= 8 ? "Mid-Table" : "Wooden Spoon"} · Rating: ${simResult.teamRating}`, PADDING, 62);
+  ctx.font = "14px NotoSans";
+  ctx.fillText(`${simResult.wins}-${simResult.losses} · ${simResult.wins === 23 ? "Undefeated" : simResult.wins >= 20 ? "Premiership Contenders" : simResult.wins >= 16 ? "Finals Certainty" : simResult.wins >= 12 ? "Finals Chance" : simResult.wins >= 8 ? "Mid-Table" : "Wooden Spoon"} · Rating: ${simResult.teamRating}`, PADDING, 62);
 
   ctx.fillStyle = "#fde68a";
-  ctx.font = "bold 14px sans-serif";
+  ctx.font = "bold 14px NotoSansBold";
   ctx.fillText(`MVP: ${simResult.mvp}`, PADDING, 84);
 
   const COL_W = (W - PADDING * 2) / COLS;
@@ -74,7 +78,7 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
     ctx.fill();
 
     ctx.fillStyle = colours.secondary;
-    ctx.font = "bold 12px sans-serif";
+    ctx.font = "bold 12px NotoSansBold";
     ctx.textAlign = "center";
     ctx.fillText(String(i + 1), x + 16, y + 24);
     ctx.textAlign = "left";
@@ -85,30 +89,29 @@ function generateShareImage(roster: DraftedPlayer[], simResult: ReturnType<typeo
     ctx.fill();
 
     ctx.fillStyle = colours.secondary;
-    ctx.font = "bold 10px sans-serif";
+    ctx.font = "bold 10px NotoSansBold";
     ctx.textAlign = "center";
     ctx.fillText(p.position, x + 56, y + 16);
     ctx.textAlign = "left";
 
     ctx.fillStyle = "#0f172a";
-    ctx.font = "bold 14px sans-serif";
+    ctx.font = "bold 14px NotoSansBold";
     ctx.fillText(p.name, x + 80, y + 17);
 
     ctx.fillStyle = "#94a3b8";
-    ctx.font = "11px sans-serif";
+    ctx.font = "11px NotoSans";
     ctx.fillText(`${p.club} · ${p.decade}`, x + 80, y + 32);
   });
 
   const footerY = HEADER + PADDING + rows * ROW_H + 16;
   ctx.fillStyle = "#cbd5e1";
-  ctx.font = "12px sans-serif";
+  ctx.font = "12px NotoSans";
   ctx.textAlign = "center";
   ctx.fillText("23-0-production.up.railway.app", W / 2, footerY);
 
-  return Buffer.from(canvas.toBuffer("image/png"));
+  return canvas.toBuffer("image/png") as unknown as Buffer;
 }
 
-// Create shares table if it doesn't exist
 db.execute(`
   CREATE TABLE IF NOT EXISTS shares (
     id TEXT PRIMARY KEY,
