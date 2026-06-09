@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Player, SpinResult, Position } from "../types";
-import { TEAM_COLOURS } from "../types";
+import { TEAM_COLOURS, POSITION_LIMITS } from "../types";
 
 interface Props {
   round: number;
@@ -12,6 +12,77 @@ interface Props {
   classicMode: boolean;
   isPositionFull: (pos: Position) => boolean;
   rosterIds: number[];
+}
+
+function PositionPickerModal({ player, onConfirm, onCancel, isPositionFull }: {
+  player: Player;
+  onConfirm: (player: Player, position: Position) => void;
+  onCancel: () => void;
+  isPositionFull: (pos: Position) => boolean;
+}) {
+  const colours = TEAM_COLOURS[player.club] ?? { primary: "#1e3a5f", secondary: "#FFFFFF" };
+  const positions = [player.position, player.secondaryPosition].filter(Boolean) as Position[];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 overflow-hidden">
+        {/* Player header */}
+        <div className="px-5 py-4" style={{ background: colours.primary }}>
+          <p className="text-white font-black text-xl">{player.name}</p>
+          <p className="text-sm mt-0.5" style={{ color: colours.secondary, opacity: 0.8 }}>{player.club} · {player.decade}</p>
+        </div>
+
+        <div className="p-5">
+          <p className="text-slate-500 text-sm mb-4">Where do you want to play them?</p>
+          <div className="flex flex-col gap-3">
+            {positions.map(pos => {
+              const full = isPositionFull(pos);
+              return (
+                <button
+                  key={pos}
+                  onClick={() => !full && onConfirm(player, pos)}
+                  disabled={full}
+                  className="flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    borderColor: full ? "#e2e8f0" : colours.primary,
+                    background: full ? "#f8fafc" : "white",
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm"
+                      style={{ background: colours.primary, color: colours.secondary }}>
+                      {pos}
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold text-slate-800 text-sm">{pos}</p>
+                      {pos === player.position && (
+                        <p className="text-xs text-slate-400">Primary position</p>
+                      )}
+                      {pos === player.secondaryPosition && (
+                        <p className="text-xs text-slate-400">Secondary position</p>
+                      )}
+                    </div>
+                  </div>
+                  {full ? (
+                    <span className="text-xs text-red-400 font-medium">Full</span>
+                  ) : (
+                    <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <button onClick={onCancel} className="w-full mt-3 py-2.5 text-sm text-slate-500 hover:text-slate-700 font-medium">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function MobilePlayerRow({ player, onPick, isPositionFull, classicMode }: {
@@ -28,10 +99,7 @@ function MobilePlayerRow({ player, onPick, isPositionFull, classicMode }: {
       disabled={isPositionFull}
       className="w-full flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-100 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
     >
-      <div
-        className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
-        style={{ background: colours.primary }}
-      >
+      <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style={{ background: colours.primary }}>
         <span className="text-xs font-bold" style={{ color: colours.secondary }}>{player.position}</span>
       </div>
       <div className="flex-1 min-w-0">
@@ -127,8 +195,11 @@ function DesktopPlayerCard({ player, onPick, isPositionFull, classicMode }: {
 export function PickingScreen({ round, spin, candidates, onPick, onRespin, respinsRemaining, classicMode, isPositionFull }: Props) {
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<Position | "All">("All");
+  const [pendingPlayer, setPendingPlayer] = useState<Player | null>(null);
 
-  const availablePositions = ["All", ...Array.from(new Set(candidates.flatMap(p => [p.position, p.secondaryPosition].filter((x): x is string => !!x))))].sort((a, b) => a === "All" ? -1 : b === "All" ? 1 : a.localeCompare(b));
+  const availablePositions = ["All", ...Array.from(new Set(
+    candidates.flatMap(p => [p.position, p.secondaryPosition].filter((x): x is string => !!x))
+  ))].sort((a, b) => a === "All" ? -1 : b === "All" ? 1 : a.localeCompare(b));
 
   const filtered = candidates.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
@@ -136,8 +207,39 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
     return matchesSearch && matchesPos;
   });
 
+  const bothPositionsFull = (player: Player) =>
+    isPositionFull(player.position as Position) &&
+    (!player.secondaryPosition || isPositionFull(player.secondaryPosition as Position));
+
+  const handlePlayerClick = (player: Player) => {
+    if (bothPositionsFull(player)) return;
+    // If only one position available, pick directly
+    const positions = [player.position, player.secondaryPosition].filter(Boolean) as Position[];
+    const available = positions.filter(p => !isPositionFull(p));
+    if (available.length === 1) {
+      onPick({ ...player, position: available[0] });
+      return;
+    }
+    // Otherwise show picker
+    setPendingPlayer(player);
+  };
+
+  const handleConfirm = (player: Player, position: Position) => {
+    onPick({ ...player, position });
+    setPendingPlayer(null);
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-100">
+      {pendingPlayer && (
+        <PositionPickerModal
+          player={pendingPlayer}
+          onConfirm={handleConfirm}
+          onCancel={() => setPendingPlayer(null)}
+          isPositionFull={isPositionFull}
+        />
+      )}
+
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-4 py-3 shrink-0">
         <div className="flex items-center justify-between gap-3">
@@ -160,7 +262,6 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
           </button>
         </div>
 
-        {/* Search */}
         <div className="mt-3 flex gap-2">
           <input
             type="text"
@@ -170,16 +271,12 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
             className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:border-slate-400"
           />
           {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
-            >
+            <button onClick={() => setSearch("")} className="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
               Clear
             </button>
           )}
         </div>
 
-        {/* Position filter pills */}
         <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
           {availablePositions.map(pos => (
             <button
@@ -209,11 +306,8 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
             <MobilePlayerRow
               key={player.id}
               player={player}
-              onPick={onPick}
-              isPositionFull={
-                isPositionFull(player.position as Position) &&
-                (!player.secondaryPosition || isPositionFull(player.secondaryPosition as Position))
-              }
+              onPick={handlePlayerClick}
+              isPositionFull={bothPositionsFull(player)}
               classicMode={classicMode}
             />
           ))
@@ -230,11 +324,8 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
               <DesktopPlayerCard
                 key={player.id}
                 player={player}
-                onPick={onPick}
-                isPositionFull={
-                  isPositionFull(player.position as Position) &&
-                  (!player.secondaryPosition || isPositionFull(player.secondaryPosition as Position))
-                }
+                onPick={handlePlayerClick}
+                isPositionFull={bothPositionsFull(player)}
                 classicMode={classicMode}
               />
             ))}
