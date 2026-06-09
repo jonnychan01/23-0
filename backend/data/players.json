@@ -9295,8 +9295,8 @@
     "handballs": 5.75,
     "rebounds": 0.7,
     "broadPosition": "MID",
-    "position": "WNG",
-    "secondaryPosition": "MID",
+    "position": "HFF",
+    "secondaryPosition": null,
     "positionSource": "footywire"
   },
   {
