@@ -27,14 +27,34 @@ router.get("/candidates", async (req, res) => {
     });
 
     const rows = result.rows
-      .filter((r) => !excludeIds.includes(r.id as number))
-      .map((r) => ({ ...r, position: POS_MAP[r.position as string] ?? r.position }));
+    .filter((r) => !excludeIds.includes(r.id as number))
+    .map((r) => {
+      return {
+        id: r.id,
+        name: r.name,
+        club: r.club,
+        decade: r.decade,
+        games: r.games,
+        goals: r.goals,
+        disposals: r.disposals,
+        marks: r.marks,
+        tackles: r.tackles,
+        hitouts: r.hitouts,
+        clearances: r.clearances,
+        inside50s: r.inside50s,
+        kicks: r.kicks,
+        handballs: r.handballs,
+        rebounds: r.rebounds,
+        position: POS_MAP[r.position as string] ?? r.position,
+        secondaryPosition: r.secondaryPosition,
+      };
+    });
 
-    return res.json(rows);
-  } catch (e) {
-    console.error(e);
-    return res.status(500).json({ error: "DB error" });
-  }
+return res.json(rows);
+} catch (e) {
+  console.error(e);
+  return res.status(500).json({ error: "DB error" });
+}
 });
 
 router.get("/clubs", async (_req, res) => {

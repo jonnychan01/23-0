@@ -84,7 +84,11 @@ function reducer(state: GameState, action: Action): GameState {
       newCounts[effectivePos] = (newCounts[effectivePos] ?? 0) + 1;
 
       // Store the player with their effective position
-      const placedPlayer = { ...player, position: effectivePos, secondaryPosition: player.position };
+      const placedPlayer = { 
+        ...player, 
+        position: effectivePos,
+        secondaryPosition: effectivePos !== primaryPos ? primaryPos : player.secondaryPosition,
+      };
       const newRoster = [...state.roster, placedPlayer];
       const isLastPick = state.round >= TOTAL_ROUNDS;
 

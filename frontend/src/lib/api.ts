@@ -23,7 +23,8 @@ export async function fetchCandidates(
   if (excludeIds.length) params.set("exclude", excludeIds.join(","));
   const res = await fetch(`${BASE}/players/candidates?${params}`);
   if (!res.ok) throw new Error("Fetch candidates failed");
-  return res.json();
+  const data = await res.json();
+  return data;
 }
 
 export async function simulateSeason(roster: Player[]): Promise<SimResult> {

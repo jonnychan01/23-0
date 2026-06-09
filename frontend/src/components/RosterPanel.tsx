@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { Player, Position } from "../types";
 import { TOTAL_ROUNDS, FIELD_POSITIONS, POSITION_LIMITS, TEAM_COLOURS } from "../types";
 
@@ -19,13 +19,11 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
 
   const selectedPlayer = roster.find(p => p.id === selectedPlayerId) ?? null;
 
-  const eligibleRef = useRef<Record<number, Position[]>>({});
-  roster.forEach(p => {
-    if (!eligibleRef.current[p.id]) {
-      eligibleRef.current[p.id] = [p.position, p.secondaryPosition].filter(Boolean) as Position[];
-    }
-  });
-  const eligibleFor = (id: number): Position[] => eligibleRef.current[id] ?? [];
+  const eligibleFor = (id: number): Position[] => {
+    const p = roster.find(pl => pl.id === id);
+    if (!p) return [];
+    return [p.position, p.secondaryPosition].filter(Boolean) as Position[];
+  };
 
   const allPositions = Array.from(new Set(roster.map(p => p.position))).sort() as Position[];
   const allClubs = Array.from(new Set(roster.map(p => p.club))).sort();
@@ -38,12 +36,13 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
     return true;
   });
 
-  const handleSlotClick = (i: number) => {
+   const handleSlotClick = (i: number) => {
     const slot = FIELD_POSITIONS[i];
     const pos = slot.position as Position;
     const samePosBefore = FIELD_POSITIONS.slice(0, i).filter(s => s.position === slot.position).length;
     const playersInPos = roster.filter(p => p.position === pos);
     const player = playersInPos[samePosBefore];
+  
 
     if (!selectedPlayer) {
       if (player) setSelectedPlayerId(player.id);
@@ -56,19 +55,20 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
     }
 
     const elig = eligibleFor(selectedPlayer.id);
-    if (!elig.includes(pos) || pos === selectedPlayer.position) {
-      if (player) {
-        setSelectedPlayerId(player.id);
-      } else {
-        setSelectedPlayerId(null);
+
+    if (elig.includes(pos) && pos !== selectedPlayer.position) {
+      if (!player) {
+        onMovePlayer?.(selectedPlayer.id, pos);
       }
       return;
     }
 
-    const isFull = (positionCounts[pos] ?? 0) >= POSITION_LIMITS[pos];
-    if (!isFull) {
-      onMovePlayer?.(selectedPlayer.id, pos);
+    if (player) {
+      setSelectedPlayerId(player.id);
+      return;
     }
+
+    setSelectedPlayerId(null);
   };
 
   const canDropOn = (pos: Position): boolean => {
@@ -81,7 +81,6 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
 
   return (
     <div className="flex flex-col h-full bg-white w-full overflow-hidden">
-      {/* Header */}
       <div className="shrink-0 p-4 border-b border-slate-200" style={{ background: "#1e3a5f" }}>
         <div className="flex items-center justify-between">
           <h2 className="font-bold text-white">Your Side</h2>
@@ -89,7 +88,6 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
         </div>
       </div>
 
-      {/* Pitch */}
       <div className="shrink-0 p-3 border-b border-slate-200 bg-slate-50">
         <div className="relative w-full" style={{ height: "460px" }}>
           <svg viewBox="-10 -10 220 320" className="w-full h-full">
@@ -136,7 +134,14 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
               const playersInPos = roster.filter(p => p.position === pos);
               const playerInSlot = playersInPos[samePosBefore];
               const isSelected = !!playerInSlot && selectedPlayer?.id === playerInSlot.id;
-              const isValid = canDropOn(pos);
+              const isValid = (() => {
+                if (!selectedPlayer) return false;
+                const elig = eligibleFor(selectedPlayer.id);
+                if (!elig.includes(pos)) return false;
+                if (pos === selectedPlayer.position) return false;
+                if (filled) return false;
+                return true;
+              })();
               const isFull = (positionCounts[pos] ?? 0) >= POSITION_LIMITS[pos];
               const cx = (slot.x / 100) * 200;
               const cy = (slot.y / 100) * 300;
@@ -146,12 +151,7 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
                 : null;
 
               const initials = playerInSlot
-                ? playerInSlot.name
-                    .split(" ")
-                    .map((w: string) => w[0])
-                    .join("")
-                    .toUpperCase()
-                    .slice(0, 3)
+                ? playerInSlot.name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 3)
                 : null;
 
               let fill = filled && colours ? colours.primary : "rgba(255,255,255,0.15)";
@@ -165,14 +165,14 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
                 strokeWidth = 2;
                 labelColour = "#ffffff";
               } else if (selectedPlayer && isValid) {
-                fill = isFull ? "rgba(255,255,255,0.05)" : "rgba(59,130,246,0.6)";
-                stroke = isFull ? "rgba(255,255,255,0.1)" : "#3b82f6";
-                strokeWidth = isFull ? 1 : 1.5;
-                labelColour = "rgba(255,255,255,0.6)";
+                fill = isFull ? "rgba(255,255,255,0.05)" : "rgba(59,130,246,0.7)";
+                stroke = isFull ? "rgba(255,255,255,0.1)" : "#93c5fd";
+                strokeWidth = isFull ? 1 : 2;
+                labelColour = "white";
               } else if (selectedPlayer && !isSelected) {
-                fill = filled && colours ? colours.primary + "66" : "rgba(255,255,255,0.05)";
-                stroke = filled && colours ? colours.secondary + "66" : "rgba(255,255,255,0.1)";
-                labelColour = filled ? colours!.secondary + "99" : "rgba(255,255,255,0.3)";
+                fill = filled && colours ? colours.primary + "55" : "rgba(255,255,255,0.05)";
+                stroke = filled && colours ? colours.secondary + "55" : "rgba(255,255,255,0.1)";
+                labelColour = filled ? colours!.secondary + "88" : "rgba(255,255,255,0.3)";
               }
 
               return (
@@ -180,25 +180,11 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
                   <circle cx={cx} cy={cy} r="13" fill="transparent"/>
                   <circle cx={cx} cy={cy} r="11" fill={fill} stroke={stroke} strokeWidth={strokeWidth}/>
                   {filled && initials ? (
-                    <text
-                      x={cx} y={cy + (initials.length > 2 ? 3 : 4)}
-                      textAnchor="middle"
-                      fontSize={initials.length > 2 ? "6" : "7"}
-                      fontWeight="bold"
-                      fill={labelColour}
-                      style={{ userSelect: "none" }}
-                    >
+                    <text x={cx} y={cy + (initials.length > 2 ? 3 : 4)} textAnchor="middle" fontSize={initials.length > 2 ? "6" : "7"} fontWeight="bold" fill={labelColour} style={{ userSelect: "none" }}>
                       {initials}
                     </text>
                   ) : (
-                    <text
-                      x={cx} y={cy + 4}
-                      textAnchor="middle"
-                      fontSize="5"
-                      fontWeight="bold"
-                      fill={labelColour}
-                      style={{ userSelect: "none" }}
-                    >
+                    <text x={cx} y={cy + 4} textAnchor="middle" fontSize="5" fontWeight="bold" fill={labelColour} style={{ userSelect: "none" }}>
                       {slot.label}
                     </text>
                   )}
@@ -210,14 +196,13 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
         {selectedPlayer ? (
           <p className="text-xs text-center mt-1">
             <span className="font-semibold text-slate-700">{selectedPlayer.name}</span>
-            <span className="text-slate-400"> — tap a green slot to move</span>
+            <span className="text-slate-400"> — tap a blue slot to move</span>
           </p>
         ) : (
           <p className="text-xs text-center text-slate-400 mt-1">Tap a player to move them</p>
         )}
       </div>
 
-      {/* Filters — desktop only, only when players exist */}
       {roster.length > 0 && (
         <div className="hidden lg:flex shrink-0 items-center gap-2 px-3 py-2 border-b border-slate-200 bg-white flex-wrap">
           <select className={selectStyle} value={filterPos} onChange={e => setFilterPos(e.target.value as Position | "ALL")}>
@@ -233,17 +218,13 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
             {allDecades.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
           {(filterPos !== "ALL" || filterClub !== "ALL" || filterDecade !== "ALL") && (
-            <button
-              className="text-xs text-blue-500 hover:text-blue-700 font-medium ml-auto"
-              onClick={() => { setFilterPos("ALL"); setFilterClub("ALL"); setFilterDecade("ALL"); }}
-            >
+            <button className="text-xs text-blue-500 hover:text-blue-700 font-medium ml-auto" onClick={() => { setFilterPos("ALL"); setFilterClub("ALL"); setFilterDecade("ALL"); }}>
               Clear
             </button>
           )}
         </div>
       )}
 
-      {/* Player list — scrollable */}
       <div className="flex-1 overflow-y-auto divide-y divide-slate-100 min-h-0">
         {roster.length === 0 ? (
           <p className="text-xs text-slate-400 text-center py-6">Pick your first player to get started</p>
@@ -255,10 +236,7 @@ export function RosterPanel({ roster, round, positionCounts, onMovePlayer }: Pro
             return (
               <div key={p.id} className="flex items-center gap-2 px-3 py-2">
                 <span className="text-slate-300 text-xs w-4 shrink-0">{i + 1}</span>
-                <div
-                  className="flex items-center justify-center px-1.5 py-0.5 rounded shrink-0"
-                  style={{ background: colours.primary }}
-                >
+                <div className="flex items-center justify-center px-1.5 py-0.5 rounded shrink-0" style={{ background: colours.primary }}>
                   <span className="text-xs font-bold" style={{ color: colours.secondary }}>{p.position}</span>
                 </div>
                 <div className="flex-1 min-w-0">
