@@ -15,7 +15,7 @@ function initialState(classicMode: boolean): GameState {
     classicMode,
     positionCounts: {
       FF: 0, FP: 0, CHF: 0, HFF: 0,
-      WNG: 0, MID: 0, RK: 0,
+      WNG: 0, MID: 0, RUC: 0,
       CHB: 0, HBF: 0, FB: 0, BP: 0,
     },
     lockedDecade:        undefined,
