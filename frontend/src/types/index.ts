@@ -7,7 +7,7 @@ export type GameScreen =
 export type Position =
   | "FF" | "FP" | "CHF" | "HFF"   // Forwards
   | "WNG" | "MID"                  // Midfield
-  | "RK"                           // Ruck
+  | "RUC"                           // Ruck
   | "CHB" | "HBF" | "FB" | "BP"   // Defence
 
 export interface Player {
@@ -71,7 +71,7 @@ export const POSITION_LIMITS: Record<Position, number> = {
   HFF:  2,
   WNG:  2,
   MID:  3,
-  RK:   1,
+  RUC:   1,
   CHB:  1,
   HBF:  2,
   FB:   1,
@@ -87,7 +87,7 @@ export const POSITION_LABELS: Record<Position, string> = {
   HFF: "Half Forward",
   WNG: "Wing",
   MID: "Midfielder",
-  RK:  "Ruck",
+  RUC:  "Ruck",
   CHB: "Ctr Hf Bck",
   HBF: "Half Back",
   FB:  "Full Back",
@@ -107,7 +107,7 @@ export const FIELD_POSITIONS = [
   { position: "MID", label: "MID", x: 40, y: 45 },
   { position: "MID", label: "MID", x: 60, y: 45 },
   { position: "MID", label: "MID", x: 60, y: 55 },
-  { position: "RK",  label: "RK",  x: 40, y: 55 },
+  { position: "RUC",  label: "RUC",  x: 40, y: 55 },
   { position: "CHB", label: "CHB", x: 50, y: 68 },
   { position: "HBF", label: "HBF", x: 30, y: 70 },
   { position: "HBF", label: "HBF", x: 70, y: 70 },

@@ -87,7 +87,7 @@ function playerRating(p: DraftedPlayer): number {
       marks * 2.0 +
       goals * 3.0 +
       tackles * 1.5;
-  } else if (p.position === "RK") {
+  } else if (p.position === "RUC") {
     raw =
       hitouts * 2.5 +
       clearances * 3.0 +
@@ -139,7 +139,7 @@ export function simulate(roster: DraftedPlayer[]): SimResult {
   const forwards = ratings.filter(r => ["FF", "FP", "CHF", "HFF"].includes(r.player.position));
   const mids     = ratings.filter(r => ["MID", "WNG"].includes(r.player.position));
   const backs    = ratings.filter(r => ["FB", "BP", "CHB", "HBF"].includes(r.player.position));
-  const rucks    = ratings.filter(r => r.player.position === "RK");
+  const rucks    = ratings.filter(r => r.player.position === "RUC");
 
   // Normalize against expected good player rating (~60-80)
   const EXPECTED = 60;
