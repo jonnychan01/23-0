@@ -9395,8 +9395,8 @@
     "handballs": 6.23,
     "rebounds": 0.77,
     "broadPosition": "MID",
-    "position": "WNG",
-    "secondaryPosition": "MID",
+    "position": "MID",
+    "secondaryPosition": "HBF",
     "positionSource": "footywire"
   },
   {
@@ -9416,7 +9416,7 @@
     "rebounds": 1.39,
     "broadPosition": "MID",
     "position": "MID",
-    "secondaryPosition": "WNG",
+    "secondaryPosition": "HBF",
     "positionSource": "footywire"
   },
   {
@@ -9436,7 +9436,7 @@
     "rebounds": 1.74,
     "broadPosition": "MID",
     "position": "MID",
-    "secondaryPosition": "WNG",
+    "secondaryPosition": "HBF",
     "positionSource": "footywire"
   },
   {
@@ -38935,7 +38935,7 @@
     "handballs": 9.4,
     "rebounds": 1.25,
     "broadPosition": "MID",
-    "position": "MID",
+    "position": "WNG",
     "secondaryPosition": null,
     "positionSource": "footywire"
   },
@@ -38955,7 +38955,7 @@
     "handballs": 6.42,
     "rebounds": 1.28,
     "broadPosition": "MID",
-    "position": "MID",
+    "position": "WNG",
     "secondaryPosition": null,
     "positionSource": "footywire"
   },
@@ -38975,7 +38975,7 @@
     "handballs": 8.47,
     "rebounds": 1.9,
     "broadPosition": "MID",
-    "position": "MID",
+    "position": "WNG",
     "secondaryPosition": null,
     "positionSource": "footywire"
   },
@@ -57835,8 +57835,8 @@
     "handballs": 7.44,
     "rebounds": 0.96,
     "broadPosition": "FWD",
-    "position": "HFF",
-    "secondaryPosition": "CHF",
+    "position": "MID",
+    "secondaryPosition": "WNG",
     "positionSource": "footywire"
   },
   {
@@ -57855,8 +57855,8 @@
     "handballs": 8.88,
     "rebounds": 1.84,
     "broadPosition": "FWD",
-    "position": "HFF",
-    "secondaryPosition": "CHF",
+    "position": "MID",
+    "secondaryPosition": "WNG",
     "positionSource": "footywire"
   },
   {
@@ -57875,7 +57875,7 @@
     "handballs": 11.77,
     "rebounds": 1.13,
     "broadPosition": "FWD",
-    "position": "WNG",
+    "position": "MID",
     "secondaryPosition": null,
     "positionSource": "footywire"
   },
@@ -59435,8 +59435,8 @@
     "handballs": 4.26,
     "rebounds": 0.52,
     "broadPosition": "FWD",
-    "position": "FP",
-    "secondaryPosition": null,
+    "position": "RK",
+    "secondaryPosition": "FF",
     "positionSource": "footywire"
   },
   {
@@ -59455,8 +59455,8 @@
     "handballs": 5.24,
     "rebounds": 0.16,
     "broadPosition": "FWD",
-    "position": "CHF",
-    "secondaryPosition": null,
+    "position": "RK",
+    "secondaryPosition": "FF",
     "positionSource": "footywire"
   },
   {
@@ -59475,8 +59475,8 @@
     "handballs": 4.79,
     "rebounds": 0.12,
     "broadPosition": "FWD",
-    "position": "FP",
-    "secondaryPosition": null,
+    "position": "RK",
+    "secondaryPosition": "FF",
     "positionSource": "footywire"
   },
   {
@@ -85235,8 +85235,8 @@
     "handballs": 6.44,
     "rebounds": 0.59,
     "broadPosition": "FWD",
-    "position": "FP",
-    "secondaryPosition": null,
+    "position": "RK",
+    "secondaryPosition": "FF",
     "positionSource": "footywire"
   },
   {
@@ -85255,8 +85255,8 @@
     "handballs": 6.56,
     "rebounds": 0.84,
     "broadPosition": "FWD",
-    "position": "FP",
-    "secondaryPosition": null,
+    "position": "RK",
+    "secondaryPosition": "FF",
     "positionSource": "footywire"
   },
   {
@@ -104376,7 +104376,7 @@
     "rebounds": 1.39,
     "broadPosition": "MID",
     "position": "MID",
-    "secondaryPosition": "WNG",
+    "secondaryPosition": null,
     "positionSource": "footywire"
   },
   {
@@ -104396,7 +104396,7 @@
     "rebounds": 1.64,
     "broadPosition": "MID",
     "position": "MID",
-    "secondaryPosition": "WNG",
+    "secondaryPosition": null,
     "positionSource": "footywire"
   },
   {
