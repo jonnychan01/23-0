@@ -1055,8 +1055,8 @@
     "handballs": 7.52,
     "rebounds": 0.3,
     "broadPosition": "FWD",
-    "position": "FP",
-    "secondaryPosition": null,
+    "position": "MID",
+    "secondaryPosition": "HFF",
     "positionSource": "footywire"
   },
   {
@@ -1074,8 +1074,8 @@
     "kicks": 12.47,
     "handballs": 10.21,
     "rebounds": 1.26,
-    "broadPosition": "FWD",
-    "position": "WNG",
+    "broadPosition": "MID",
+    "position": "HFF",
     "secondaryPosition": null,
     "positionSource": "footywire"
   },
@@ -1095,8 +1095,8 @@
     "handballs": 14.69,
     "rebounds": 1.09,
     "broadPosition": "FWD",
-    "position": "HFF",
-    "secondaryPosition": "CHF",
+    "position": "MID",
+    "secondaryPosition": "HFF",
     "positionSource": "footywire"
   },
   {
@@ -9275,8 +9275,8 @@
     "handballs": 5.55,
     "rebounds": 0,
     "broadPosition": "MID",
-    "position": "WNG",
-    "secondaryPosition": "MID",
+    "position": "HFF",
+    "secondaryPosition": "WNG",
     "positionSource": "footywire"
   },
   {
@@ -27276,7 +27276,7 @@
     "rebounds": 2.82,
     "broadPosition": "MID",
     "position": "MID",
-    "secondaryPosition": "WNG",
+    "secondaryPosition": null,
     "positionSource": "footywire"
   },
   {
@@ -30776,7 +30776,7 @@
     "rebounds": 1.22,
     "broadPosition": "MID",
     "position": "MID",
-    "secondaryPosition": "HBF",
+    "secondaryPosition": null,
     "positionSource": "footywire"
   },
   {
@@ -58336,7 +58336,7 @@
     "rebounds": 1.43,
     "broadPosition": "MID",
     "position": "MID",
-    "secondaryPosition": "HBF",
+    "secondaryPosition": "HFF",
     "positionSource": "footywire"
   },
   {
@@ -58356,7 +58356,7 @@
     "rebounds": 1.94,
     "broadPosition": "MID",
     "position": "MID",
-    "secondaryPosition": "WNG",
+    "secondaryPosition": "HFF",
     "positionSource": "footywire"
   },
   {
@@ -58696,7 +58696,7 @@
     "rebounds": 2.27,
     "broadPosition": "MID",
     "position": "MID",
-    "secondaryPosition": "WNG",
+    "secondaryPosition": null,
     "positionSource": "footywire"
   },
   {
@@ -79676,7 +79676,7 @@
     "rebounds": 3.54,
     "broadPosition": "MID",
     "position": "MID",
-    "secondaryPosition": "WNG",
+    "secondaryPosition": "HBF",
     "positionSource": "footywire"
   },
   {
@@ -100614,8 +100614,8 @@
     "kicks": 8.62,
     "handballs": 6.97,
     "rebounds": 1.65,
-    "broadPosition": "FWD",
-    "position": "CHF",
+    "broadPosition": "RK",
+    "position": "null",
     "secondaryPosition": null,
     "positionSource": "footywire"
   },
@@ -100635,8 +100635,8 @@
     "handballs": 6.91,
     "rebounds": 1.21,
     "broadPosition": "FWD",
-    "position": "HFF",
-    "secondaryPosition": "CHF",
+    "position": "RK",
+    "secondaryPosition": null,
     "positionSource": "footywire"
   },
   {
