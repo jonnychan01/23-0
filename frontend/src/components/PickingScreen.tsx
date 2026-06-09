@@ -27,7 +27,6 @@ function PositionPickerModal({ player, onConfirm, onCancel, isPositionFull }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 overflow-hidden">
-        {/* Player header */}
         <div className="px-5 py-4" style={{ background: colours.primary }}>
           <p className="text-white font-black text-xl">{player.name}</p>
           <p className="text-sm mt-0.5" style={{ color: colours.secondary, opacity: 0.8 }}>{player.club} · {player.decade}</p>
@@ -123,9 +122,6 @@ function MobilePlayerRow({ player, onPick, isPositionFull, classicMode }: {
           ))}
         </div>
       )}
-      {isPositionFull && (
-        <span className="text-xs text-red-400 font-medium shrink-0">Full</span>
-      )}
     </button>
   );
 }
@@ -201,26 +197,29 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
     candidates.flatMap(p => [p.position, p.secondaryPosition].filter((x): x is string => !!x))
   ))].sort((a, b) => a === "All" ? -1 : b === "All" ? 1 : a.localeCompare(b));
 
-  const filtered = candidates.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchesPos = posFilter === "All" || p.position === posFilter || p.secondaryPosition === posFilter;
-    return matchesSearch && matchesPos;
-  });
-
   const bothPositionsFull = (player: Player) =>
     isPositionFull(player.position as Position) &&
     (!player.secondaryPosition || isPositionFull(player.secondaryPosition as Position));
 
+  const filtered = [...candidates]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+      const matchesPos = posFilter === "All" || p.position === posFilter || p.secondaryPosition === posFilter;
+      return matchesSearch && matchesPos;
+    });
+
+  // Mobile hides players whose positions are all full
+  const filteredMobile = filtered.filter(p => !bothPositionsFull(p));
+
   const handlePlayerClick = (player: Player) => {
     if (bothPositionsFull(player)) return;
-    // If only one position available, pick directly
     const positions = [player.position, player.secondaryPosition].filter(Boolean) as Position[];
     const available = positions.filter(p => !isPositionFull(p));
     if (available.length === 1) {
       onPick({ ...player, position: available[0] });
       return;
     }
-    // Otherwise show picker
     setPendingPlayer(player);
   };
 
@@ -297,12 +296,12 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
         <p className="text-slate-400 text-xs mt-2">{filtered.length} of {candidates.length} players</p>
       </div>
 
-      {/* Mobile list */}
+      {/* Mobile list — full players hidden */}
       <div className="flex-1 overflow-y-auto lg:hidden">
-        {filtered.length === 0 ? (
+        {filteredMobile.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-slate-400 text-sm">No players found</div>
         ) : (
-          filtered.map(player => (
+          filteredMobile.map(player => (
             <MobilePlayerRow
               key={player.id}
               player={player}
@@ -314,7 +313,7 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
         )}
       </div>
 
-      {/* Desktop grid */}
+      {/* Desktop grid — full players shown greyed out */}
       <div className="hidden lg:block flex-1 overflow-y-auto p-4">
         {filtered.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-slate-400 text-sm">No players found</div>
