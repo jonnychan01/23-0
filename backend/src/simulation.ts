@@ -41,87 +41,104 @@ function eraMultiplier(decade: string): number {
   return ERA_MULTIPLIERS[decade] ?? 1.0;
 }
 
-// Per-game stats — simulation works on per-game averages not totals
-function playerRating(p: DraftedPlayer): number {
-  const era = eraMultiplier(p.decade);
-
-  // Cap games at 250 so longevity doesn't dominate
-  const gameFactor = Math.min(1.0,
-    Math.log10(Math.max(p.games, 1)) / Math.log10(250)
-  );
-
-  // All stats are already per-game averages from the DB
-  const goals      = p.goals;
-  const disposals  = p.disposals;
-  const marks      = p.marks;
-  const tackles    = p.tackles;
-  const clearances = p.clearances;
-  const inside50s  = p.inside50s;
-  const hitouts    = p.hitouts;
-
-  let raw = 0;
-
-  if (["FF", "FP"].includes(p.position)) {
-    raw =
-      goals * 8.0 +
-      marks * 3.0 +
-      inside50s * 2.0 +
-      disposals * 1.0;
-  } else if (["CHF", "HFF"].includes(p.position)) {
-    raw =
-      goals * 5.0 +
-      marks * 4.0 +
-      inside50s * 3.0 +
-      disposals * 1.5;
-  } else if (p.position === "MID") {
-    raw =
-      disposals * 3.0 +
-      clearances * 4.0 +
-      tackles * 2.5 +
-      inside50s * 2.0 +
-      goals * 3.0;
-  } else if (p.position === "WNG") {
-    raw =
-      disposals * 2.5 +
-      inside50s * 3.0 +
-      marks * 2.0 +
-      goals * 3.0 +
-      tackles * 1.5;
-  } else if (p.position === "RUC") {
-    raw =
-      hitouts * 2.5 +
-      clearances * 3.0 +
-      disposals * 1.5 +
-      marks * 2.0;
-  } else if (["CHB", "HBF"].includes(p.position)) {
-    raw =
-      marks * 4.0 +
-      disposals * 2.5 +
-      tackles * 3.0 +
-      clearances * 1.5;
-  } else if (["FB", "BP"].includes(p.position)) {
-    raw =
-      marks * 3.0 +
-      tackles * 3.5 +
-      disposals * 2.0;
-  } else {
-    raw =
-      goals * 4.0 +
-      disposals * 2.0 +
-      marks * 2.5 +
-      tackles * 2.0;
-  }
-
-  return raw * era * (0.85 + 0.15 * gameFactor);
-}
-
 function sigmoid(x: number, midpoint: number, steepness: number): number {
   return 1 / (1 + Math.exp(-steepness * (x - midpoint)));
 }
 
-function avg(arr: { rating: number }[]): number {
+function avg(arr: number[]): number {
   if (arr.length === 0) return 0;
-  return arr.reduce((s, r) => s + r.rating, 0) / arr.length;
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+
+// Raw score 0-100 based on position benchmarks
+// 50 = solid player, 100 = theoretical max
+function rawPlayerScore(p: DraftedPlayer): number {
+  const { goals, disposals, marks, tackles, clearances, hitouts } = p;
+
+  if (p.position === "FF") {
+    return (
+      Math.min(100, (goals / 6.0)      * 55) +
+      Math.min(100, (marks / 10.0)     * 30) +
+      Math.min(100, (disposals / 22.0) * 15)
+    );
+  } else if (p.position === "FP") {
+    return (
+      Math.min(100, (goals / 6.0)      * 60) +
+      Math.min(100, (marks / 8.0)      * 25) +
+      Math.min(100, (disposals / 18.0) * 15)
+    );
+  } else if (p.position === "CHF") {
+    return (
+      Math.min(100, (goals / 3.0)      * 30) +
+      Math.min(100, (marks / 11.0)     * 40) +
+      Math.min(100, (disposals / 26.0) * 30)
+    );
+  } else if (p.position === "HFF") {
+    return (
+      Math.min(100, (disposals / 38.0) * 35) +
+      Math.min(100, (clearances / 8.0) * 25) +
+      Math.min(100, (tackles / 6.5)    * 20) +
+      Math.min(100, (goals / 2.0)      * 20)
+    );
+  } else if (p.position === "MID") {
+    return (
+      Math.min(100, (disposals / 40.0) * 30) +
+      Math.min(100, (clearances / 9.0) * 35) +
+      Math.min(100, (tackles / 8.0)    * 25) +
+      Math.min(100, (goals / 1.5)      * 10)
+    );
+  } else if (p.position === "WNG") {
+    return (
+      Math.min(100, (disposals / 32.0) * 50) +
+      Math.min(100, (marks / 6.0)      * 25) +
+      Math.min(100, (tackles / 3.5)    * 15) +
+      Math.min(100, (goals / 1.0)      * 10)
+    );
+  } else if (p.position === "RUC") {
+    return (
+      Math.min(100, (hitouts / 30.0)   * 55) +
+      Math.min(100, (marks / 12.0)     * 25) +
+      Math.min(100, (disposals / 24.0) * 20)
+    );
+  } else if (p.position === "CHB") {
+    return (
+      Math.min(100, (disposals / 28.0) * 40) +
+      Math.min(100, (marks / 9.0)      * 35) +
+      Math.min(100, (tackles / 5.0)    * 25)
+    );
+  } else if (p.position === "HBF") {
+    return (
+      Math.min(100, (disposals / 34.0) * 45) +
+      Math.min(100, (marks / 7.0)      * 30) +
+      Math.min(100, (tackles / 6.0)    * 25)
+    );
+  } else if (p.position === "FB") {
+    return (
+      Math.min(100, (disposals / 30.0) * 45) +
+      Math.min(100, (marks / 9.0)      * 40) +
+      Math.min(100, (tackles / 4.0)    * 15)
+    );
+  } else if (p.position === "BP") {
+    return (
+      Math.min(100, (disposals / 28.0) * 45) +
+      Math.min(100, (marks / 7.0)      * 40) +
+      Math.min(100, (tackles / 4.5)    * 15)
+    );
+  }
+  return 0;
+}
+
+function playerScore(p: DraftedPlayer): number {
+  const era = eraMultiplier(p.decade);
+  const gameFactor = Math.min(1.0,
+    Math.log10(Math.max(p.games, 1)) / Math.log10(250)
+  );
+
+  const raw = rawPlayerScore(p) * era * (0.85 + 0.15 * gameFactor);
+
+  // Sigmoid so average players (~30 raw) score ~35, elite (~90 raw) score ~90+
+  // Stops average stats from inflating to 80+
+  return Math.min(100, sigmoid(raw, 45, 0.08) * 100);
 }
 
 export function simulate(roster: DraftedPlayer[]): SimResult {
@@ -133,69 +150,61 @@ export function simulate(roster: DraftedPlayer[]): SimResult {
     };
   }
 
-  const ratings = roster.map(p => ({ player: p, rating: playerRating(p) }));
-  ratings.sort((a, b) => b.rating - a.rating);
+  const scored = roster.map(p => ({ player: p, score: playerScore(p) }));
+  scored.sort((a, b) => b.score - a.score);
 
-  const forwards = ratings.filter(r => ["FF", "FP", "CHF", "HFF"].includes(r.player.position));
-  const mids     = ratings.filter(r => ["MID", "WNG"].includes(r.player.position));
-  const backs    = ratings.filter(r => ["FB", "BP", "CHB", "HBF"].includes(r.player.position));
-  const rucks    = ratings.filter(r => r.player.position === "RUC");
+  const forwards = scored.filter(r => ["FF", "FP", "CHF", "HFF"].includes(r.player.position));
+  const mids     = scored.filter(r => ["MID", "WNG"].includes(r.player.position));
+  const backs    = scored.filter(r => ["FB", "BP", "CHB", "HBF"].includes(r.player.position));
+  const rucks    = scored.filter(r => r.player.position === "RUC");
 
-  // Raised from 60 to 55 so ratings score higher, making good teams more achievable
-  const EXPECTED = 55;
-  const normalize = (val: number) => Math.min(100, (val / EXPECTED) * 100);
+  const attackScore = avg(forwards.map(r => r.score));
+  const midScore    = avg(mids.map(r => r.score));
+  const defScore    = avg(backs.map(r => r.score));
+  const ruckScore   = avg(rucks.map(r => r.score));
 
-  const attackScore = normalize(avg(forwards));
-  const midScore    = normalize(avg(mids));
-  const defScore    = normalize(avg(backs));
-  const ruckScore   = normalize(avg(rucks));
-  const overallAvg  = normalize(avg(ratings));
+  const attackFinal = forwards.length > 0 ? attackScore : 15;
+  const midFinal    = mids.length > 0     ? midScore    : 15;
+  const defFinal    = backs.length > 0    ? defScore    : 15;
+  const ruckFinal   = rucks.length > 0    ? ruckScore   : 20;
 
-  const zoneScores = [
-    forwards.length > 0 ? attackScore : null,
-    mids.length > 0     ? midScore    : null,
-    backs.length > 0    ? defScore    : null,
-    rucks.length > 0    ? ruckScore   : null,
-  ].filter((s): s is number => s !== null);
+  // Geometric mean — weak zones drag whole team down
+  const composite =
+    Math.pow(attackFinal, 0.25) *
+    Math.pow(midFinal,    0.28) *
+    Math.pow(defFinal,    0.22) *
+    Math.pow(ruckFinal,   0.10) *
+    Math.pow(avg(scored.map(r => r.score)), 0.15);
 
-  const avgZone = zoneScores.reduce((a, b) => a + b, 0) / zoneScores.length;
-  const variance = zoneScores.reduce((s, v) => s + Math.pow(v - avgZone, 2), 0) / zoneScores.length;
+  const teamRating = Math.min(100, composite);
 
-  // Reduced from 0.3 to 0.25 — slightly less punishing for imbalanced rosters
-  const balancePenalty = Math.min(20, Math.sqrt(variance) * 0.25);
-
-  const bottom6Avg = avg(ratings.slice(-6));
-  const depthFactor = Math.max(0.75, Math.min(1.05, bottom6Avg / avg(ratings)));
-
-  const compositeRating = Math.max(0, Math.min(100,
-    (attackScore * 0.28 +
-     midScore    * 0.28 +
-     defScore    * 0.20 +
-     ruckScore   * 0.09 +
-     overallAvg  * 0.15) * depthFactor - balancePenalty
-  ));
-
-  // midpoint 70→60: average teams win more; steepness 0.08→0.10: steeper spread
-  // bad teams fall harder, great teams rise higher, but 23-0 needs ~95+ rating
-  const winProb = sigmoid(compositeRating, 60, 0.10);
+  // Sigmoid win mapping:
+  // teamRating 90+ → ~22-23 wins
+  // teamRating 60  → ~12-14 wins  
+  // teamRating 40  → ~5-8 wins
+  // teamRating 20  → ~1-3 wins
+  const winProb = sigmoid(teamRating, 43, 0.10);
   const rawWins = winProb * 23;
 
-  // Noise widened from ±1.25 to ±2.0 for more natural variance
-  const noise = (Math.random() - 0.5) * 4.0;
+  const noise = teamRating >= 88 ? 0 : (Math.random() - 0.5) * 4.0;
   const wins = Math.max(0, Math.min(23, Math.round(rawWins + noise)));
+
+  const zones = [attackFinal, midFinal, defFinal, ruckFinal];
+  const avgZone = avg(zones);
+  const variance = avg(zones.map(z => Math.pow(z - avgZone, 2)));
+  const balanceScore = Math.max(0, Math.round(100 - Math.sqrt(variance)));
 
   return {
     wins,
     losses: 23 - wins,
-    teamRating: Math.round(compositeRating * 10) / 10,
+    teamRating: Math.round(teamRating * 10) / 10,
     breakdown: {
       attacking: Math.round(attackScore),
       midfield:  Math.round(midScore),
       defensive: Math.round(defScore),
       ruck:      Math.round(ruckScore),
-      // Reduced multiplier from 3 to 2.5 to match softer balance penalty
-      balance:   Math.round(100 - balancePenalty * 2.5),
+      balance:   balanceScore,
     },
-    mvp: ratings[0]?.player.name ?? "Unknown",
+    mvp: scored[0]?.player.name ?? "Unknown",
   };
 }
