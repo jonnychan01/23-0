@@ -21,7 +21,7 @@ function PositionPickerModal({ player, onConfirm, onCancel, isPositionFull }: {
   isPositionFull: (pos: Position) => boolean;
 }) {
   const colours = TEAM_COLOURS[player.club] ?? { primary: "#1e3a5f", secondary: "#FFFFFF" };
-  const positions = [player.position, player.secondaryPosition].filter(Boolean) as Position[];
+  const positions = [...new Set([player.position, player.secondaryPosition].filter(Boolean))] as Position[];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
