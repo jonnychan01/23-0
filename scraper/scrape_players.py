@@ -129,13 +129,8 @@ FW_BROAD_MAP = {
 }
 
 def _parse_fw_positions(raw: str) -> list[str]:
-    """
-    Parse footywire position string into list of broad codes.
-    "Midfielder/Forward" -> ["MID", "FWD"]
-    "Forward/Ruck"       -> special case -> ["RUC"] (handled downstream)
-    """
     raw = raw.strip().lower()
-    raw = re.sub(r"\s*/\s*", "/", raw)
+    raw = re.sub(r"\s*[/,]\s*", "/", raw)
     parts = [p.strip() for p in raw.split("/")]
     broads = []
     for p in parts:
@@ -181,7 +176,7 @@ def fetch_fw_profile(name: str, clubs: list[str], fw_cache: dict) -> dict:
         text = profile_div.get_text(" ", strip=True)
 
         broads = []
-        pos_m = re.search(r"Position[:\s]+([A-Za-z/\s]+?)(?:\s+Height|\s+Weight|\s+Draft|$)", text, re.IGNORECASE)
+        pos_m = re.search(r"Position[:\s]+([A-Za-z/,\s]+?)(?:\s+Height|\s+Weight|\s+Draft|$)", text, re.IGNORECASE)
         if pos_m:
             broads = _parse_fw_positions(pos_m.group(1))
 
@@ -221,19 +216,14 @@ def infer_specific_position(
     height_cm: int | None = None,
     weight_kg: int | None = None,
 ) -> tuple[str, str | None]:
-    """
-    Infer specific position within a confirmed broad group.
-    Uses all available ratios — kick%, handball%, tackle%, hitout%,
-    goal%, mark%, rebound%, i50%, clearance rate — plus height/weight.
-    """
-    kick_ratio     = _r(kicks, disposals)       # how kick-dominant
-    handball_ratio = _r(handballs, disposals)   # how handball-dominant
-    td_ratio       = _r(tackles, disposals)     # contested pressure index
-    gd_ratio       = _r(goals, disposals)       # scoring efficiency per touch
-    hd_ratio       = _r(hitouts, disposals)     # ruck dominance ratio
-    md_ratio       = _r(marks, disposals)       # marking index per touch
-    rd_ratio       = _r(rebounds, disposals)    # defensive rebound rate
-    i50d_ratio     = _r(inside50s, disposals)   # attack rate per touch
+    kick_ratio     = _r(kicks, disposals)
+    handball_ratio = _r(handballs, disposals)
+    td_ratio       = _r(tackles, disposals)
+    gd_ratio       = _r(goals, disposals)
+    hd_ratio       = _r(hitouts, disposals)
+    md_ratio       = _r(marks, disposals)
+    rd_ratio       = _r(rebounds, disposals)
+    i50d_ratio     = _r(inside50s, disposals)
 
     short_fwd = height_cm is not None and height_cm < 190
     light_fwd = weight_kg is not None and weight_kg < 82
@@ -242,29 +232,23 @@ def infer_specific_position(
 
     # ── RUC ────────────────────────────────────────────────────────────────
     if broad == "RUC":
-        # Pure ruck: hitout-dominant, hd_ratio high
         if hd_ratio >= 1.5 or hitouts >= 20:
             return "RUC", None
-        # Ruck/mid: contributes in clearances despite hitouts
         if hitouts >= 8 and (clearances >= 3 or disposals >= 15 or handball_ratio >= 0.40):
             return "RUC", "MID"
-        # Ruck/defender: tall marking type
         if hitouts >= 8 and (marks >= 4 or md_ratio >= 0.25):
             return "RUC", "CHB"
-        # Part-time ruck leaning marking
         if md_ratio >= 0.25 or marks >= 4:
             return "RUC", "CHB"
         return "RUC", None
 
     # ── FWD ────────────────────────────────────────────────────────────────
     if broad == "FWD":
-        # Short/light → pocket
         if short_fwd or light_fwd:
             if gd_ratio >= 0.12 or goals >= 1.5:
                 return "FP", "HFF"
             return "FP", None
 
-        # Tall/heavy key forward
         if tall_fwd or heavy_fwd:
             if gd_ratio >= 0.18 or goals >= 2.5:
                 return "FF", None
@@ -274,8 +258,6 @@ def infer_specific_position(
                 return "CHF", "FF"
             return "CHF", None
 
-        # No height data — use ratios only
-        # FF: high scoring efficiency + marking
         if gd_ratio >= 0.20 and md_ratio >= 0.20:
             return "FF", None
         if goals >= 3.5 and marks >= 4:
@@ -286,12 +268,10 @@ def infer_specific_position(
             return "FF", "CHF"
         if goals >= 2.5:
             return "FF", "FP"
-        # FP: scores but small — low kick ratio, low disposals
         if goals >= 2.0 and kick_ratio < 0.60 and handball_ratio >= 0.40:
             return "FP", "HFF"
         if goals >= 1.8 and disposals < 16:
             return "FP", None
-        # CHF: marking forward
         if goals >= 1.5 and (marks >= 6 or md_ratio >= 0.35):
             return "CHF", None
         if goals >= 1.5 and marks >= 5:
@@ -300,7 +280,6 @@ def infer_specific_position(
             return "CHF", "HFF"
         if goals >= 1.0 and (marks >= 6 or md_ratio >= 0.35):
             return "CHF", "HFF"
-        # HFF: link player — kick-dominant, attacks arc
         if i50d_ratio >= 0.20 and kick_ratio >= 0.55 and goals >= 0.8:
             return "HFF", "WNG"
         if goals >= 0.7 and marks >= 4 and disposals >= 14:
@@ -313,7 +292,6 @@ def infer_specific_position(
 
     # ── MID ────────────────────────────────────────────────────────────────
     if broad == "MID":
-        # Inside mid: clearances + tackles + handball dominance
         if clearances >= 6 and tackles >= 5:
             return "MID", None
         if clearances >= 5 and td_ratio >= 0.18:
@@ -328,21 +306,18 @@ def infer_specific_position(
             return "MID", "WNG"
         if disposals >= 22 and td_ratio >= 0.12:
             return "MID", "WNG"
-        # Winger: kick-dominant, attacks arc, low clearances
         if kick_ratio >= 0.65 and i50d_ratio >= 0.18 and clearances < 3:
             return "WNG", None
         if kick_ratio >= 0.62 and i50d_ratio >= 0.15 and gd_ratio >= 0.03:
             return "WNG", "MID"
         if disposals >= 18 and kick_ratio >= 0.55 and rd_ratio < 0.08:
             return "WNG", "MID"
-        # Defensive mid
         if td_ratio >= 0.18 and clearances >= 2 and rd_ratio >= 0.06:
             return "MID", "HBF"
         return "MID", None
 
     # ── DEF ────────────────────────────────────────────────────────────────
     if broad == "DEF":
-        # Full back: rebound-dominant, almost no goals
         if rd_ratio >= 0.25 and goals < 0.2:
             return "FB", None
         if rebounds >= 5 and goals < 0.2:
@@ -351,7 +326,6 @@ def infer_specific_position(
             return "FB", "CHB"
         if rd_ratio >= 0.15 and goals < 0.2 and md_ratio >= 0.20:
             return "FB", "CHB"
-        # CHB: marking defender, some rebounds
         if md_ratio >= 0.40 and goals < 0.4:
             return "CHB", None
         if marks >= 7 and goals < 0.4:
@@ -362,14 +336,12 @@ def infer_specific_position(
             return "CHB", "HBF"
         if rd_ratio >= 0.10 and md_ratio >= 0.22 and goals < 0.5:
             return "CHB", "HBF"
-        # HBF: running link — kick-dominant, some rebounds
         if rd_ratio >= 0.10 and goals < 0.5 and disposals >= 14:
             return "HBF", "MID"
         if kick_ratio >= 0.58 and goals < 0.4 and md_ratio >= 0.18:
             return "HBF", "CHB"
         if goals < 0.4 and disposals >= 16 and td_ratio >= 0.15:
             return "HBF", None
-        # Back pocket
         if goals < 0.3 and rd_ratio >= 0.06 and md_ratio >= 0.15:
             return "BP", "HBF"
         if goals < 0.25 and disposals >= 12:
@@ -397,18 +369,16 @@ def infer_positions_fallback(
     rd_ratio       = _r(rebounds, disposals)
     i50d_ratio     = _r(inside50s, disposals)
 
-    short_fwd = height_cm is not None and height_cm < 180
+    short_fwd = height_cm is not None and height_cm < 190
     light_fwd = weight_kg is not None and weight_kg < 82
     tall_fwd  = height_cm is not None and height_cm >= 190
     heavy_fwd = weight_kg is not None and weight_kg >= 95
 
-    # Ruck — hd_ratio is the primary signal
     if hd_ratio >= 1.5 or hitouts >= 20:                                    return "RUC", None
     if hitouts >= 8 and (clearances >= 3 or handball_ratio >= 0.40):        return "RUC", "MID"
     if hitouts >= 8 and (md_ratio >= 0.25 or marks >= 4):                   return "RUC", "CHB"
     if hitouts >= 4 and hd_ratio >= 0.30:                                   return "RUC", None
 
-    # Height/weight-based forward override
     if short_fwd or light_fwd:
         if gd_ratio >= 0.12 or goals >= 1.5:                                return "FP", "HFF"
         if goals >= 0.5:                                                     return "FP", None
@@ -417,54 +387,43 @@ def infer_positions_fallback(
         if goals >= 1.5 and (md_ratio >= 0.30 or marks >= 5):               return "FF", "CHF"
         if md_ratio >= 0.35 and goals >= 0.8:                               return "CHF", "FF"
 
-    # Full forward
     if gd_ratio >= 0.20 and md_ratio >= 0.20:                               return "FF", None
     if goals >= 3.5 and marks >= 4:                                         return "FF", None
     if goals >= 3.5:                                                         return "FF", "CHF"
     if goals >= 2.8 and md_ratio >= 0.25:                                   return "FF", "CHF"
     if goals >= 2.5 and i50d_ratio >= 0.20:                                 return "FF", "FP"
-    # Forward pocket
     if goals >= 2.0 and kick_ratio < 0.60 and handball_ratio >= 0.40:       return "FP", "HFF"
     if goals >= 1.8 and disposals < 16:                                     return "FP", None
-    # CHF
     if goals >= 1.5 and (md_ratio >= 0.35 or marks >= 6):                   return "CHF", None
     if goals >= 1.5 and marks >= 5:                                         return "CHF", "FF"
     if goals >= 1.2 and marks >= 5 and i50d_ratio >= 0.18:                  return "CHF", "HFF"
     if goals >= 1.0 and (md_ratio >= 0.35 or marks >= 6):                   return "CHF", "HFF"
-    # HFF
     if i50d_ratio >= 0.20 and kick_ratio >= 0.55 and goals >= 0.8:          return "HFF", "WNG"
     if goals >= 0.7 and md_ratio >= 0.22 and disposals >= 14:               return "HFF", "CHF"
     if i50d_ratio >= 0.18 and goals >= 0.6:                                 return "HFF", None
-    # Wing
     if kick_ratio >= 0.65 and i50d_ratio >= 0.18 and clearances < 3:        return "WNG", None
     if kick_ratio >= 0.62 and i50d_ratio >= 0.15 and td_ratio < 0.15:       return "WNG", "HFF"
     if disposals >= 18 and kick_ratio >= 0.55 and goals < 0.8 and rd_ratio < 0.08: return "WNG", "MID"
-    # Mid
     if clearances >= 6 and tackles >= 5:                                    return "MID", None
     if clearances >= 5 and td_ratio >= 0.18:                                return "MID", "WNG"
     if clearances >= 4 and disposals >= 20:                                 return "MID", "WNG"
     if td_ratio >= 0.22 and disposals >= 18:                                return "MID", "HBF"
     if handball_ratio >= 0.45 and tackles >= 4 and clearances >= 3:         return "MID", "WNG"
     if disposals >= 22 and td_ratio >= 0.12:                                return "MID", "WNG"
-    # Full back
     if rd_ratio >= 0.25 and goals < 0.2:                                    return "FB", None
     if rebounds >= 5 and goals < 0.2:                                       return "FB", None
     if rebounds >= 4 and goals < 0.4:                                       return "FB", "CHB"
     if rd_ratio >= 0.15 and goals < 0.2 and md_ratio >= 0.20:               return "FB", "CHB"
-    # CHB
     if md_ratio >= 0.40 and goals < 0.4:                                    return "CHB", None
     if marks >= 7 and goals < 0.4:                                          return "CHB", None
     if marks >= 6 and goals < 0.5 and rd_ratio >= 0.08:                     return "CHB", "FB"
     if md_ratio >= 0.30 and goals < 0.6 and disposals >= 15:                return "CHB", "HBF"
     if rd_ratio >= 0.10 and md_ratio >= 0.22 and goals < 0.5:               return "CHB", "HBF"
-    # HBF
     if rd_ratio >= 0.10 and goals < 0.5 and disposals >= 14:                return "HBF", "MID"
     if kick_ratio >= 0.58 and goals < 0.4 and md_ratio >= 0.18:             return "HBF", "CHB"
     if goals < 0.4 and disposals >= 16 and td_ratio >= 0.15:                return "HBF", None
-    # BP
     if goals < 0.3 and rd_ratio >= 0.06 and md_ratio >= 0.15:               return "BP", "HBF"
     if goals < 0.25 and disposals >= 12:                                    return "BP", None
-    # Fallbacks
     if goals >= 1.0:                                                         return "HFF", None
     if goals >= 0.5:                                                         return "WNG", None
     if goals >= 0.3:                                                         return "MID", None
@@ -533,6 +492,53 @@ def get_player_list(slug: str) -> list[tuple[str, str, int]]:
             continue
 
     return results
+
+
+def resolve_primary_broad(broads: list[str], stat_args: tuple) -> str:
+    """
+    When footywire lists multiple broad positions, use stats to determine
+    which broad is actually primary.
+    """
+    if len(broads) == 1:
+        return broads[0]
+
+    (goals_pg, hitouts_pg, disposals_pg, marks_pg, tackles_pg,
+     kicks_pg, handballs_pg, inside50s_pg, clearances_pg, rebounds_pg,
+     height_cm, weight_kg) = stat_args
+
+    b = set(broads)
+
+    # RUC/FWD — only treat as RUC if genuine ruck
+    if "RUC" in b and "FWD" in b:
+        return "RUC" if hitouts_pg >= 15 else "FWD"
+
+    # RUC/MID — hitouts decide
+    if "RUC" in b and "MID" in b:
+        return "RUC" if hitouts_pg >= 8 else "MID"
+
+    # MID/FWD or FWD/MID
+    if "MID" in b and "FWD" in b:
+        mid_score = clearances_pg * 2 + tackles_pg
+        fwd_score = goals_pg * 3 + inside50s_pg
+        return "MID" if mid_score >= fwd_score else "FWD"
+
+    # DEF/MID or MID/DEF
+    if "DEF" in b and "MID" in b:
+        def_score = rebounds_pg * 2 + marks_pg
+        mid_score = clearances_pg * 2 + tackles_pg + disposals_pg * 0.3
+        return "DEF" if def_score >= mid_score else "MID"
+
+    # DEF/FWD — rare, use goals vs rebounds
+    if "DEF" in b and "FWD" in b:
+        return "FWD" if goals_pg >= 0.8 else "DEF"
+
+    # fallback to first listed
+    return broads[0]
+
+
+def get_secondary_broad(broads: list[str], primary: str) -> str | None:
+    others = [b for b in broads if b != primary]
+    return others[0] if others else None
 
 
 def scrape_player_by_club_and_decade(name: str, url: str, fw_cache: dict) -> list[dict]:
@@ -646,9 +652,6 @@ def scrape_player_by_club_and_decade(name: str, url: str, fw_cache: dict) -> lis
     height_cm  = profile["height_cm"]
     weight_kg  = profile["weight_kg"]
 
-    # Special case: FWD/RUC → treat as RUC with HFF secondary
-    is_fwd_ruc = "FWD" in fw_broads and "RUC" in fw_broads
-
     players = []
     for club, decades in club_decade_stats.items():
         for decade, s in decades.items():
@@ -676,20 +679,17 @@ def scrape_player_by_club_and_decade(name: str, url: str, fw_cache: dict) -> lis
                 height_cm, weight_kg,
             )
 
-            if is_fwd_ruc:
-                position  = "RUC"
-                secondary = "HFF"
-                broad_position = "RUC"
-            elif fw_broads:
-                # Use primary broad from footywire, ratios give specific
-                primary_broad = fw_broads[0]
+            if fw_broads:
+                primary_broad = resolve_primary_broad(fw_broads, stat_args)
                 position, secondary = infer_specific_position(primary_broad, *stat_args)
                 broad_position = primary_broad
-                # If there's a second broad, use it to inform secondary if not already set
-                if len(fw_broads) > 1 and secondary is None:
-                    sec_broad = fw_broads[1]
-                    sec_pos, _ = infer_specific_position(sec_broad, *stat_args)
-                    secondary = sec_pos
+
+                # If no secondary from specific inference, derive from second broad
+                if secondary is None:
+                    sec_broad = get_secondary_broad(fw_broads, primary_broad)
+                    if sec_broad:
+                        sec_pos, _ = infer_specific_position(sec_broad, *stat_args)
+                        secondary = sec_pos
             else:
                 # Full fallback
                 position, secondary = infer_positions_fallback(*stat_args)
@@ -751,7 +751,7 @@ def main():
         print(f"\n── {club_name} ──")
         player_list = get_player_list(slug)
         print(f"  Found {len(player_list)} players (1970s+)")
-        time.sleep(0.2)
+        time.sleep(0.05)
 
         for i, (name, url, _) in enumerate(player_list):
             cached = name.lower() in fw_cache
@@ -775,9 +775,9 @@ def main():
                 save_fw_cache(fw_cache)
 
             if not cached:
-                time.sleep(0.2)
+                time.sleep(0.05)
             else:
-                time.sleep(0.1)
+                time.sleep(0.02)
 
         done_clubs.add(slug)
         progress["done_clubs"] = list(done_clubs)
