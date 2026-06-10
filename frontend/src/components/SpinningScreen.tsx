@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { SpinResult, Player } from "../types";
+import type { Position, SpinResult, Player } from "../types";
+import { POSITION_LIMITS } from "../types";
 import { fetchCandidates, spinReel } from "../lib/api";
 
 const CLUBS = ["Adelaide","Brisbane Lions","Carlton","Collingwood","Essendon","Fitzroy","Fremantle","Geelong","Gold Coast","GWS Giants","Hawthorn","Melbourne","North Melbourne","Port Adelaide","Richmond","St Kilda","Sydney","West Coast","Western Bulldogs"];
@@ -7,7 +8,8 @@ const DECADES = ["1890s","1900s","1910s","1920s","1930s","1940s","1950s","1960s"
 
 interface Props {
   round: number;
-  existingRosterIds: number[];
+  existingRosterNames: string[];
+  positionCounts: Record<Position, number>;
   onComplete: (spin: SpinResult, candidates: Player[]) => void;
   lockedDecade?: string;
   lockedClub?: string;
@@ -15,7 +17,7 @@ interface Props {
   preloadedCandidates?: Player[];
 }
 
-export function SpinningScreen({ round, existingRosterIds, onComplete, lockedDecade, lockedClub, preloadedSpin, preloadedCandidates }: Props) {
+export function SpinningScreen({ round, existingRosterNames, positionCounts, onComplete, lockedDecade, lockedClub, preloadedSpin, preloadedCandidates }: Props) {
   const [clubDisplay, setClubDisplay] = useState(CLUBS[0]);
   const [decadeDisplay, setDecadeDisplay] = useState(DECADES[0]);
   const [done, setDone] = useState(false);
@@ -25,32 +27,41 @@ export function SpinningScreen({ round, existingRosterIds, onComplete, lockedDec
   const shownClub = (lockedClub && !done) ? lockedClub : clubDisplay;
   const shownDecade = (lockedDecade && !done) ? lockedDecade : decadeDisplay;
 
-  // Fetch
+  const availablePositions = (Object.keys(POSITION_LIMITS) as Position[]).filter(
+    pos => (positionCounts[pos] ?? 0) < POSITION_LIMITS[pos]
+  );
+
   useEffect(() => {
     if (preloadedSpin && preloadedCandidates) {
       resultRef.current = { spin: preloadedSpin, candidates: preloadedCandidates };
       return;
     }
+
     const fetchWithRetry = async () => {
       let attempts = 0;
-      while (attempts < 10) {
+      while (attempts < 15) {
         const s = await spinReel();
-        const c = await fetchCandidates(s.club, s.decade, existingRosterIds);
+        const c = await fetchCandidates(
+          s.club,
+          s.decade,
+          existingRosterNames,
+          availablePositions
+        );
         if (c.length > 0) {
           resultRef.current = { spin: s, candidates: c };
           return;
         }
         attempts++;
       }
-      // Last resort — just use whatever we got
+      // Last resort — fetch without position filter
       const s = await spinReel();
-      const c = await fetchCandidates(s.club, s.decade, existingRosterIds);
+      const c = await fetchCandidates(s.club, s.decade, existingRosterNames, []);
       resultRef.current = { spin: s, candidates: c };
     };
+
     fetchWithRetry();
   }, []);
 
-  // Animation
   useEffect(() => {
     let clubIdx = 0;
     let decadeIdx = 0;
@@ -80,7 +91,6 @@ export function SpinningScreen({ round, existingRosterIds, onComplete, lockedDec
     return () => { clearInterval(fast); clearTimeout(slowTimer); };
   }, []);
 
-  // Transition
   useEffect(() => {
     if (!done) return;
     const interval = setInterval(() => {
@@ -88,7 +98,7 @@ export function SpinningScreen({ round, existingRosterIds, onComplete, lockedDec
       if (result && !completedRef.current) {
         completedRef.current = true;
         clearInterval(interval);
-        setTimeout(() => onComplete(result.spin, result.candidates), 400 );
+        setTimeout(() => onComplete(result.spin, result.candidates), 400);
       }
     }, 100);
     return () => clearInterval(interval);

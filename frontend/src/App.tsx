@@ -7,6 +7,7 @@ import { PickingScreen }  from "./components/PickingScreen";
 import { ResultScreen }   from "./components/ResultScreen";
 import { RosterPanel }    from "./components/RosterPanel";
 import { SharePage }      from "./components/SharePage";
+import { simulateSeason } from "./lib/api";
 import type { Player, SpinResult } from "./types";
 
 function MainApp() {
@@ -84,7 +85,8 @@ function MainApp() {
             {screen === "spinning" && (
               <SpinningScreen
                 round={round}
-                existingRosterIds={roster.map(p => p.id)}
+                existingRosterNames={roster.map(p => p.name)}
+                positionCounts={positionCounts}
                 onComplete={handleSpinComplete}
                 lockedDecade={state.lockedDecade}
                 lockedClub={state.lockedClub}

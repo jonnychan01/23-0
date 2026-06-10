@@ -8,14 +8,18 @@ const POS_MAP: Record<string, string> = {
 };
 
 router.get("/candidates", async (req, res) => {
-  const { club, decade, exclude } = req.query as Record<string, string>;
+  const { club, decade, exclude_names, positions } = req.query as Record<string, string>;
 
   if (!club || !decade) {
     return res.status(400).json({ error: "club and decade required" });
   }
 
-  const excludeIds = exclude
-    ? exclude.split(",").map(Number).filter(Boolean)
+  const excludeNames = exclude_names
+    ? exclude_names.split(",").map(n => n.trim()).filter(Boolean)
+    : [];
+
+  const availablePositions = positions
+    ? positions.split(",").map(p => p.trim()).filter(Boolean)
     : [];
 
   try {
@@ -26,10 +30,9 @@ router.get("/candidates", async (req, res) => {
       args: [club, decade],
     });
 
-    const rows = result.rows
-    .filter((r) => !excludeIds.includes(r.id as number))
-    .map((r) => {
-      return {
+    let rows = result.rows
+      .filter((r) => !excludeNames.includes(r.name as string))
+      .map((r) => ({
         id: r.id,
         name: r.name,
         club: r.club,
@@ -47,14 +50,20 @@ router.get("/candidates", async (req, res) => {
         rebounds: r.rebounds,
         position: POS_MAP[r.position as string] ?? r.position,
         secondaryPosition: r.secondaryPosition,
-      };
-    });
+      }));
 
-return res.json(rows);
-} catch (e) {
-  console.error(e);
-  return res.status(500).json({ error: "DB error" });
-}
+    if (availablePositions.length > 0) {
+      rows = rows.filter(r =>
+        availablePositions.includes(r.position as string) ||
+        availablePositions.includes(r.secondaryPosition as string)
+      );
+    }
+
+    return res.json(rows);
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "DB error" });
+  }
 });
 
 router.get("/clubs", async (_req, res) => {

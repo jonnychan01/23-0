@@ -1,4 +1,4 @@
-import type { Player, SimResult, SpinResult } from "../types";
+import type { Player, Position, SimResult, SpinResult } from "../types";
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -17,14 +17,15 @@ export async function spinReel(
 export async function fetchCandidates(
   club: string,
   decade: string,
-  excludeIds: number[] = []
+  excludeNames: string[] = [],
+  availablePositions: string[] = []
 ): Promise<Player[]> {
   const params = new URLSearchParams({ club, decade });
-  if (excludeIds.length) params.set("exclude", excludeIds.join(","));
+  if (excludeNames.length) params.set("exclude_names", excludeNames.join(","));
+  if (availablePositions.length) params.set("positions", availablePositions.join(","));
   const res = await fetch(`${BASE}/players/candidates?${params}`);
   if (!res.ok) throw new Error("Fetch candidates failed");
-  const data = await res.json();
-  return data;
+  return res.json();
 }
 
 export async function simulateSeason(roster: Player[]): Promise<SimResult> {
