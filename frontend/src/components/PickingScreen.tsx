@@ -11,7 +11,7 @@ interface Props {
   respinsRemaining: number;
   classicMode: boolean;
   isPositionFull: (pos: Position) => boolean;
-  rosterIds: number[];
+  rosterNames: string[];
 }
 
 function PositionPickerModal({ player, onConfirm, onCancel, isPositionFull }: {
@@ -188,7 +188,7 @@ function DesktopPlayerCard({ player, onPick, isPositionFull, classicMode }: {
   );
 }
 
-export function PickingScreen({ round, spin, candidates, onPick, onRespin, respinsRemaining, classicMode, isPositionFull, rosterIds }: Props) {
+export function PickingScreen({ round, spin, candidates, onPick, onRespin, respinsRemaining, classicMode, isPositionFull, rosterNames }: Props) {
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<Position | "All">("All");
   const [pendingPlayer, setPendingPlayer] = useState<Player | null>(null);
@@ -206,7 +206,7 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
     .filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
       const matchesPos = posFilter === "All" || p.position === posFilter || p.secondaryPosition === posFilter;
-      const alreadyPicked = rosterIds.includes(p.id);
+      const alreadyPicked = rosterNames.includes(p.name);
       return matchesSearch && matchesPos && !alreadyPicked;
     });
 
@@ -296,14 +296,14 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
         <p className="text-slate-400 text-xs mt-2">{filtered.length} of {candidates.length} players</p>
       </div>
 
-      {/* Mobile list — full players and already-picked players hidden */}
+      {/* Mobile list */}
       <div className="flex-1 overflow-y-auto lg:hidden">
         {filteredMobile.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-slate-400 text-sm">No players found</div>
         ) : (
-          filteredMobile.map(player => (
+          filteredMobile.map((player, i) => (
             <MobilePlayerRow
-              key={player.id}
+              key={`${player.name}-${player.club}-${player.decade}`}
               player={player}
               onPick={handlePlayerClick}
               isPositionFull={bothPositionsFull(player)}
@@ -313,15 +313,15 @@ export function PickingScreen({ round, spin, candidates, onPick, onRespin, respi
         )}
       </div>
 
-      {/* Desktop grid — already-picked and full players hidden */}
+      {/* Desktop grid */}
       <div className="hidden lg:block flex-1 overflow-y-auto p-4">
         {filtered.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-slate-400 text-sm">No players found</div>
         ) : (
           <div className="grid grid-cols-3 xl:grid-cols-4 gap-3">
-            {filtered.map(player => (
+            {filtered.map((player) => (
               <DesktopPlayerCard
-                key={player.id}
+                key={`${player.name}-${player.club}-${player.decade}`}
                 player={player}
                 onPick={handlePlayerClick}
                 isPositionFull={bothPositionsFull(player)}
