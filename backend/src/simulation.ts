@@ -183,7 +183,7 @@ export function simulate(roster: DraftedPlayer[]): SimResult {
   // teamRating 60  → ~12-14 wins  
   // teamRating 40  → ~5-8 wins
   // teamRating 20  → ~1-3 wins
-  const winProb = sigmoid(teamRating, 43, 0.10);
+  const winProb = sigmoid(teamRating, 47, 0.10);
   const rawWins = winProb * 23;
 
   const noise = teamRating >= 88 ? 0 : (Math.random() - 0.5) * 4.0;
