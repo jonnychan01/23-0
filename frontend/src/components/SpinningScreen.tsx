@@ -31,10 +31,23 @@ export function SpinningScreen({ round, existingRosterIds, onComplete, lockedDec
       resultRef.current = { spin: preloadedSpin, candidates: preloadedCandidates };
       return;
     }
-    spinReel().then(async (s) => {
+    const fetchWithRetry = async () => {
+      let attempts = 0;
+      while (attempts < 10) {
+        const s = await spinReel();
+        const c = await fetchCandidates(s.club, s.decade, existingRosterIds);
+        if (c.length > 0) {
+          resultRef.current = { spin: s, candidates: c };
+          return;
+        }
+        attempts++;
+      }
+      // Last resort — just use whatever we got
+      const s = await spinReel();
       const c = await fetchCandidates(s.club, s.decade, existingRosterIds);
       resultRef.current = { spin: s, candidates: c };
-    });
+    };
+    fetchWithRetry();
   }, []);
 
   // Animation
