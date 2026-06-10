@@ -141,8 +141,8 @@ export function simulate(roster: DraftedPlayer[]): SimResult {
   const backs    = ratings.filter(r => ["FB", "BP", "CHB", "HBF"].includes(r.player.position));
   const rucks    = ratings.filter(r => r.player.position === "RUC");
 
-  // Normalize against expected good player rating (~60-80)
-  const EXPECTED = 60;
+  // Raised from 60 to 55 so ratings score higher, making good teams more achievable
+  const EXPECTED = 55;
   const normalize = (val: number) => Math.min(100, (val / EXPECTED) * 100);
 
   const attackScore = normalize(avg(forwards));
@@ -160,7 +160,9 @@ export function simulate(roster: DraftedPlayer[]): SimResult {
 
   const avgZone = zoneScores.reduce((a, b) => a + b, 0) / zoneScores.length;
   const variance = zoneScores.reduce((s, v) => s + Math.pow(v - avgZone, 2), 0) / zoneScores.length;
-  const balancePenalty = Math.min(20, Math.sqrt(variance) * 0.3);
+
+  // Reduced from 0.3 to 0.25 — slightly less punishing for imbalanced rosters
+  const balancePenalty = Math.min(20, Math.sqrt(variance) * 0.25);
 
   const bottom6Avg = avg(ratings.slice(-6));
   const depthFactor = Math.max(0.75, Math.min(1.05, bottom6Avg / avg(ratings)));
@@ -173,10 +175,13 @@ export function simulate(roster: DraftedPlayer[]): SimResult {
      overallAvg  * 0.15) * depthFactor - balancePenalty
   ));
 
-  // Sigmoid: rating 65 = ~11 wins, rating 85 = ~18 wins, rating 95 = ~21 wins
-  const winProb = sigmoid(compositeRating, 70, 0.08);
+  // midpoint 70→60: average teams win more; steepness 0.08→0.10: steeper spread
+  // bad teams fall harder, great teams rise higher, but 23-0 needs ~95+ rating
+  const winProb = sigmoid(compositeRating, 60, 0.10);
   const rawWins = winProb * 23;
-  const noise = (Math.random() - 0.5) * 2.5;
+
+  // Noise widened from ±1.25 to ±2.0 for more natural variance
+  const noise = (Math.random() - 0.5) * 4.0;
   const wins = Math.max(0, Math.min(23, Math.round(rawWins + noise)));
 
   return {
@@ -188,7 +193,8 @@ export function simulate(roster: DraftedPlayer[]): SimResult {
       midfield:  Math.round(midScore),
       defensive: Math.round(defScore),
       ruck:      Math.round(ruckScore),
-      balance:   Math.round(100 - balancePenalty * 3),
+      // Reduced multiplier from 3 to 2.5 to match softer balance penalty
+      balance:   Math.round(100 - balancePenalty * 2.5),
     },
     mvp: ratings[0]?.player.name ?? "Unknown",
   };
