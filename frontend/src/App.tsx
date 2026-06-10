@@ -103,7 +103,7 @@ function MainApp() {
                 respinsRemaining={state.respinsRemaining}
                 classicMode={classicMode}
                 isPositionFull={isPositionFull}
-                rosterIds={roster.map(p => p.id)}
+                rosterNames={roster.map(p => p.name)}
               />
             )}
 
@@ -124,7 +124,7 @@ function MainApp() {
                   respinsRemaining={state.respinsRemaining}
                   classicMode={classicMode}
                   isPositionFull={isPositionFull}
-                  rosterIds={roster.map(p => p.id)}
+                  rosterNames={roster.map(p => p.name)}
                 />
               </div>
             )}
